@@ -13,6 +13,7 @@
 
 #include "src/core/hitable.h"
 #include "src/core/camera.h"
+#include "src/mesh/obj_loader.h"
 
 #define RESOLUTION 1
 #define SAMPLES 100
@@ -118,7 +119,7 @@ int main()
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    /*
+    
     // --------------------------- allocate the mesh ----------------------------------------
     vec3* points;
     vec3* idxVertex;
@@ -128,7 +129,7 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
 
     int nPoints, nTriangles;
-    parseObjByName("./shapes/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
+    parseObjByName("./objects/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
 
     std::cout << "# of points: " << nPoints << std::endl;
     std::cout << "# of triangles: " << nTriangles << std::endl;
@@ -137,7 +138,7 @@ int main()
     for (int i = 0; i < nPoints; i++) { points[i] *= 30.0; }
     for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
 
-
+    /*
     Hitable** triangles;
     checkCudaErrors(cudaMallocManaged((void**)&triangles, nTriangles * sizeof(Hitable*)));
     // --------------------------- ! allocate the mesh ---------------------------------------

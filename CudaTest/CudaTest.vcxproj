@@ -85,6 +85,30 @@
     <ClInclude Include="src\core\hitable.h" />
     <ClInclude Include="src\core\ray.h" />
     <ClInclude Include="src\core\vec3.h" />
+    <ClInclude Include="src\mesh\obj_loader.h" />
+    <ClInclude Include="stb-master\stb_connected_components.h" />
+    <ClInclude Include="stb-master\stb_c_lexer.h" />
+    <ClInclude Include="stb-master\stb_divide.h" />
+    <ClInclude Include="stb-master\stb_ds.h" />
+    <ClInclude Include="stb-master\stb_dxt.h" />
+    <ClInclude Include="stb-master\stb_easy_font.h" />
+    <ClInclude Include="stb-master\stb_herringbone_wang_tile.h" />
+    <ClInclude Include="stb-master\stb_hexwave.h" />
+    <ClInclude Include="stb-master\stb_image.h" />
+    <ClInclude Include="stb-master\stb_image_resize.h" />
+    <ClInclude Include="stb-master\stb_image_write.h" />
+    <ClInclude Include="stb-master\stb_include.h" />
+    <ClInclude Include="stb-master\stb_leakcheck.h" />
+    <ClInclude Include="stb-master\stb_perlin.h" />
+    <ClInclude Include="stb-master\stb_rect_pack.h" />
+    <ClInclude Include="stb-master\stb_sprintf.h" />
+    <ClInclude Include="stb-master\stb_textedit.h" />
+    <ClInclude Include="stb-master\stb_tilemap_editor.h" />
+    <ClInclude Include="stb-master\stb_truetype.h" />
+    <ClInclude Include="stb-master\stb_voxel_render.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stb-master\stb_vorbis.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
