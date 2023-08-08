@@ -1,8 +1,76 @@
-﻿
+﻿#define _USE_MATH_DEFINES
+
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
+#include <cmath>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
 #include <stdio.h>
+#include <curand.h>
+#include <curand_kernel.h>
+
+#include "src/core/hitable.h"
+#include "src/core/camera.h"
+
+#define RESOLUTION 1
+#define SAMPLES 100
+
+#define checkCudaErrors(val) check_cuda((val), #val, __FILE__, __LINE__)
+
+
+void check_cuda(cudaError_t result,
+    char const* const func,
+    const char* const file,
+    int const line) {
+    if (result) {
+        std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
+            file << ":" << line << " '" << func << "' \n";
+        cudaDeviceReset();
+        exit(99);
+    }
+}
+
+__global__ void random_init(int nx,
+    int ny,
+    curandState* state) {
+    int x = threadIdx.x + blockIdx.x * blockDim.x;
+    int y = threadIdx.y + blockIdx.y * blockDim.y;
+    if ((x >= nx) || (y >= ny)) return;
+    int pixel_index = y * nx + x;
+    curand_init(0, pixel_index, 0, &state[pixel_index]);
+}
+
+__global__ void destroy(Hitable** obj_list,
+    Hitable** world,
+    Camera** camera,
+    int obj_cnt) {
+    for (int i = 0; i < obj_cnt; i++) {
+        delete* (obj_list + i);
+    }
+    delete* world;
+    delete* camera;
+}
+
+__global__ void renderTest(vec3* colorBuffer,
+    curandState* state,
+    int nx,
+    int ny) {
+    int x = threadIdx.x + blockIdx.x * blockDim.x;
+    int y = threadIdx.y + blockIdx.y * blockDim.y;
+    if ((x >= nx) || (y >= ny)) return;
+
+    int pixel_index = y * nx + x;
+    vec3 col(0, 0, 0);
+
+    col[0] = float(x) / float(nx);
+    col[1] = float(y) / float(ny);
+    col[2] = 0.5f;
+
+    colorBuffer[pixel_index] = clip(col);
+}
+
 
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
@@ -14,6 +82,108 @@ __global__ void addKernel(int *c, const int *a, const int *b)
 
 int main()
 {
+    std::ofstream imgWrite("images/image.ppm");
+
+    int nx = 1024 * RESOLUTION;
+    int ny = 512 * RESOLUTION;
+    int tx = 16;
+    int ty = 16;
+
+    int num_pixel = nx * ny;
+
+
+    // 画素のメモリ確保
+    vec3* colorBuffer;
+
+    checkCudaErrors(cudaMallocManaged((void**)&colorBuffer, num_pixel * sizeof(vec3)));
+
+    // 乱数列生成用のメモリ確保
+    curandState* curand_state;
+    checkCudaErrors(cudaMallocManaged((void**)&curand_state, num_pixel * sizeof(curandState)));
+
+    // シーン作成
+    int obj_cnt = 488;
+    Hitable** obj_list;
+    Hitable** world;
+    Camera** camera;
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+    checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(Hitable*)));
+    checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
+
+    
+    // 画素ごとに乱数を初期化
+    dim3 blocks(nx / tx + 1, ny / ty + 1);
+    dim3 threads(tx, ty);
+    random_init << <blocks, threads >> > (nx, ny, curand_state);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    /*
+    // --------------------------- allocate the mesh ----------------------------------------
+    vec3* points;
+    vec3* idxVertex;
+
+    // NOTE: must pre-allocate before initialize the elements
+    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
+
+    int nPoints, nTriangles;
+    parseObjByName("./shapes/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
+
+    std::cout << "# of points: " << nPoints << std::endl;
+    std::cout << "# of triangles: " << nTriangles << std::endl;
+
+    // 大きくしてる？
+    for (int i = 0; i < nPoints; i++) { points[i] *= 30.0; }
+    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
+
+
+    Hitable** triangles;
+    checkCudaErrors(cudaMallocManaged((void**)&triangles, nTriangles * sizeof(Hitable*)));
+    // --------------------------- ! allocate the mesh ---------------------------------------
+
+    // オブジェクト、カメラの生成
+    build_mesh << <1, 1 >> > (world, camera, triangles, points,
+        idxVertex, nPoints, nTriangles, curand_state, nx, ny, obj_cnt);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+    */
+
+    // レンダリング
+    //render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, SAMPLES);
+    renderTest <<<blocks,threads>>> (colorBuffer,curand_state, nx, ny);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    // 画像書き出し
+    imgWrite << "P3\n" << nx << " " << ny << "\n255\n";
+    for (int i = ny - 1; i >= 0; i--) {
+        for (int j = 0; j < nx; j++) {
+            size_t pixel_index = i * nx + j;
+            int ir = int(255.99 * colorBuffer[pixel_index].r());
+            int ig = int(255.99 * colorBuffer[pixel_index].g());
+            int ib = int(255.99 * colorBuffer[pixel_index].b());
+            imgWrite << ir << " " << ig << " " << ib << "\n";
+        }
+    }
+    
+    // clean up
+    checkCudaErrors(cudaDeviceSynchronize());
+    destroy << <1, 1 >> > (obj_list, world, camera, obj_cnt);
+
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaFree(world));
+    checkCudaErrors(cudaFree(obj_list));
+    checkCudaErrors(cudaFree(camera));
+    checkCudaErrors(cudaFree(curand_state));
+    checkCudaErrors(cudaFree(colorBuffer));
+    
+
+    cudaDeviceReset();
+
+    
+
+
     const int arraySize = 5;
     const int a[arraySize] = { 1, 2, 3, 4, 5 };
     const int b[arraySize] = { 10, 20, 30, 40, 50 };
