@@ -19,6 +19,7 @@
 
 #define checkCudaErrors(val) check_cuda((val), #val, __FILE__, __LINE__)
 
+#define CHECK(call) {const cudaError_t error = call;  if (error != cudaSuccess)  { printf("Error: %s:%d, ", __FILE__, __LINE__); printf("code:%d, reason: %s\n", error, cudaGetErrorString(error)); exit(1); } }
 
 void check_cuda(cudaError_t result,
     char const* const func,
@@ -84,6 +85,57 @@ __global__ void destroy(Hitable** obj_list,
     delete* camera;
 }
 
+__device__ vec3 shade(const Ray& r,
+    Hitable** world,
+    int depth,
+    curandState* state) {
+    HitRecord rec;
+    if ((*world)->hit(r, 0.001, FLT_MAX, rec)) {
+        Ray scattered;
+        vec3 attenuation;
+        vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+        if (depth < 15 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
+            return emitted + attenuation * shade(scattered, world, depth + 1, state);
+        }
+        else {
+            return emitted;
+        }
+    }
+    else {
+        return vec3(0, 0, 0);
+    }
+}
+
+__global__ void render(vec3* colorBuffer,
+    Hitable** world,
+    Camera** camera,
+    curandState* state,
+    int nx,
+    int ny,
+    int samples) {
+    int x = threadIdx.x + blockIdx.x * blockDim.x;
+    int y = threadIdx.y + blockIdx.y * blockDim.y;
+    if ((x >= nx) || (y >= ny)) return;
+
+    int pixel_index = y * nx + x;
+
+    int ns = samples;
+    vec3 col(0, 0, 0);
+    for (int i = 0; i < ns; i++) {
+        float u = float(x + curand_uniform(&(state[pixel_index]))) / float(nx);
+        float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
+        Ray r = (*camera)->get_ray(u, v, state);
+        col += shade(r, world, 0, &(state[pixel_index]));
+        // col += shade_nolight(r, world, 0, &(state[pixel_index]));
+    }
+    col /= float(ns);
+    col[0] = sqrt(col[0]);
+    col[1] = sqrt(col[1]);
+    col[2] = sqrt(col[2]);
+
+    colorBuffer[pixel_index] = clip(col);
+}
+
 __global__ void renderTest(vec3* colorBuffer,
     curandState* state,
     int nx,
@@ -122,6 +174,8 @@ int main()
 
     int num_pixel = nx * ny;
 
+    size_t size = 1024*1024*1024;
+    cudaDeviceSetLimit(cudaLimitMallocHeapSize, size);
 
     // 画素のメモリ確保
     vec3* colorBuffer;
@@ -176,13 +230,14 @@ int main()
     // オブジェクト、カメラの生成
     build_mesh << <1, 1 >> > (world, camera, triangles, points,
         idxVertex, nPoints, nTriangles, curand_state, nx, ny, obj_cnt);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
+    CHECK(cudaDeviceSynchronize());
+    //checkCudaErrors(cudaGetLastError());
+    //checkCudaErrors(cudaDeviceSynchronize());
     
 
     // レンダリング
     //render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, SAMPLES);
-    renderTest <<<blocks,threads>>> (colorBuffer,curand_state, nx, ny);
+    //renderTest <<<blocks,threads>>> (colorBuffer,curand_state, nx, ny);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
