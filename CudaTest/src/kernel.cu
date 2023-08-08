@@ -11,9 +11,8 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#include "src/core/hitable.h"
-#include "src/core/camera.h"
-#include "src/mesh/obj_loader.h"
+#include "mesh/obj_loader.h"
+#include "test_scene.h"
 
 #define RESOLUTION 1
 #define SAMPLES 100
@@ -30,6 +29,37 @@ void check_cuda(cudaError_t result,
             file << ":" << line << " '" << func << "' \n";
         cudaDeviceReset();
         exit(99);
+    }
+}
+
+__global__ void build_mesh(Hitable** mesh,
+    Camera** camera,
+    Hitable** triangles,
+    vec3* points,
+    vec3* idxVertex,
+    int np, int nt,
+    curandState* state,
+    int nx, int ny, int cnt) {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+
+        draw_one_mesh(mesh, triangles, points, idxVertex, np, nt, state);
+        // bunny_inside_cornell_box(mesh, triangles, points, idxVertex, np, nt, state);
+
+        vec3 lookfrom(0, 0, 10);
+        vec3 lookat(0, 0, 0);
+        float dist_to_focus = 10.0;
+        float aperture = 0.0;
+        float vfov = 60.0;
+
+        *camera = new MotionCamera(lookfrom,
+            lookat,
+            vec3(0, 1, 0),
+            vfov,
+            float(nx) / float(ny),
+            aperture,
+            dist_to_focus,
+            0.0,
+            1.0);
     }
 }
 
@@ -138,7 +168,7 @@ int main()
     for (int i = 0; i < nPoints; i++) { points[i] *= 30.0; }
     for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
 
-    /*
+   
     Hitable** triangles;
     checkCudaErrors(cudaMallocManaged((void**)&triangles, nTriangles * sizeof(Hitable*)));
     // --------------------------- ! allocate the mesh ---------------------------------------
@@ -148,7 +178,7 @@ int main()
         idxVertex, nPoints, nTriangles, curand_state, nx, ny, obj_cnt);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    */
+    
 
     // レンダリング
     //render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, SAMPLES);
