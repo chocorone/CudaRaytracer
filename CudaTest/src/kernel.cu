@@ -122,11 +122,17 @@ __device__ vec3 shade(const Ray& r,
         Ray scattered;
         vec3 attenuation;
         vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
-        if (depth < 15 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
-            return emitted + attenuation * shade(scattered, world, depth + 1, state);
+        /*if (depth > 0 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
+            return emitted + attenuation * shade(scattered, world, depth -1, state);
         }
         else {
             return emitted;
+        }*/
+        if (rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
+            return attenuation;
+        }
+        else {
+            return vec3(1, 1, 1);
         }
     }
     else {
@@ -140,7 +146,8 @@ __global__ void render(vec3* colorBuffer,
     curandState* state,
     int nx,
     int ny,
-    int samples) {
+    int samples,
+    int max_depth) {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
     if ((x >= nx) || (y >= ny)) return;
@@ -153,13 +160,16 @@ __global__ void render(vec3* colorBuffer,
         float u = float(x + curand_uniform(&(state[pixel_index]))) / float(nx);
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
-        col += shade(r, world, 0, &(state[pixel_index]));
+        col += shade(r, world, max_depth, &(state[pixel_index]));
         // col += shade_nolight(r, world, 0, &(state[pixel_index]));
     }
     col /= float(ns);
     col[0] = sqrt(col[0]);
     col[1] = sqrt(col[1]);
     col[2] = sqrt(col[2]);
+    //col[0] = float(x) / float(nx);
+    //col[1] = float(y) / float(ny);
+    //col[2] = 0.5f;
 
     colorBuffer[pixel_index] = clip(col);
 }
@@ -224,6 +234,7 @@ int main()
     int ny = 512 * RESOLUTION;
     int tx = 16;
     int ty = 16;
+    int max_depth = 15;
 
     int num_pixel = nx * ny;
 
@@ -268,9 +279,9 @@ int main()
     
 
     // レンダリング
-    render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, SAMPLES);
+    render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, SAMPLES,max_depth);
     //renderTest <<<blocks,threads>>> (colorBuffer,curand_state, nx, ny);
-    //CHECK(cudaDeviceSynchronize());
+    CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
