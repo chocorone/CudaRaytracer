@@ -185,3 +185,8 @@ __host__ __device__ inline vec3& vec3::operator/=(const float t) {
 __host__ __device__ inline vec3 unit_vector(vec3 v) {
     return v / v.length();
 }
+
+
+__host__ __device__ inline vec3 lerp(float t,vec3 from, vec3 to) {
+    return from + t*to;
+}

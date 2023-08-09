@@ -115,10 +115,10 @@ __global__ void destroy(Hitable** obj_list,
 
 __device__ vec3 backgroundSky(const vec3& d)
 {
-    //vec3 v = normalize(d);
-    //float t = 0.5f * (v[1] + 1.0f);
-    //return lerp(t, vec3(1), vec3(0.5f, 0.7f, 1.0f));
-    return vec3(0.5f, 0.7f, 1.0f);
+    vec3 v = unit_vector(d);
+    float t = 0.5f * (v[1] + 1.0f);
+    return lerp(t, vec3(1), vec3(0.5f, 0.7f, 1.0f));
+    //return vec3(0.5f, 0.7f, 1.0f);
 }
 
 __device__ vec3 shade(const Ray& r,
