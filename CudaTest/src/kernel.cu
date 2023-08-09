@@ -113,6 +113,14 @@ __global__ void destroy(Hitable** obj_list,
     delete* camera;
 }
 
+__device__ vec3 backgroundSky(const vec3& d)
+{
+    //vec3 v = normalize(d);
+    //float t = 0.5f * (v[1] + 1.0f);
+    //return lerp(t, vec3(1), vec3(0.5f, 0.7f, 1.0f));
+    return vec3(0.5f, 0.7f, 1.0f);
+}
+
 __device__ vec3 shade(const Ray& r,
     Hitable** world,
     int depth,
@@ -122,21 +130,41 @@ __device__ vec3 shade(const Ray& r,
         Ray scattered;
         vec3 attenuation;
         vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
-        /*if (depth > 0 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
+        if (depth > 0 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
             return emitted + attenuation * shade(scattered, world, depth -1, state);
         }
         else {
             return emitted;
-        }*/
-        if (rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
+        }
+        /*if (rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
             return attenuation;
         }
         else {
             return vec3(1, 1, 1);
+        }*/
+    }
+    else {
+        return backgroundSky(r.direction());
+    }
+}
+
+__device__ vec3 shade_nolight(const Ray& r,
+    Hitable** world,
+    int depth,
+    curandState* state) {
+    HitRecord rec;
+    if ((*world)->hit(r, 0.001, FLT_MAX, rec)) {
+        Ray scattered;
+        vec3 attenuation;
+        if (depth > 0&& rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
+            return attenuation * shade_nolight(scattered, world, depth - 1, state);
+        }
+        else {
+            return vec3(0, 0, 0);
         }
     }
     else {
-        return vec3(0, 0, 0);
+        return vec3(1.0, 1.0, 1.0);
     }
 }
 
@@ -161,8 +189,10 @@ __global__ void render(vec3* colorBuffer,
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
         col += shade(r, world, max_depth, &(state[pixel_index]));
-        // col += shade_nolight(r, world, 0, &(state[pixel_index]));
+        //col += shade_nolight(r, world, 0, &(state[pixel_index]));
+        
     }
+    printf("%d,%d 完了\n", x, y);
     col /= float(ns);
     col[0] = sqrt(col[0]);
     col[1] = sqrt(col[1]);
@@ -170,7 +200,7 @@ __global__ void render(vec3* colorBuffer,
     //col[0] = float(x) / float(nx);
     //col[1] = float(y) / float(ny);
     //col[2] = 0.5f;
-
+    
     colorBuffer[pixel_index] = clip(col);
 }
 
@@ -238,8 +268,17 @@ int main()
 
     int num_pixel = nx * ny;
 
-    size_t size = 1024*1024*1024;
-    cudaDeviceSetLimit(cudaLimitMallocHeapSize, size);
+    size_t heapSize = 1024*1024*1024;
+    size_t stackSize = 4096;
+
+    cudaDeviceSetLimit(cudaLimitMallocHeapSize, heapSize);
+    cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
+
+    //確認
+    cudaDeviceGetLimit(&heapSize, cudaLimitMallocHeapSize);
+    printf("Heap Size=%ld\n", heapSize);
+    cudaDeviceGetLimit(&stackSize, cudaLimitStackSize);
+    printf("Stack Size=%ld\n", stackSize);
 
     // 画素のメモリ確保
     vec3* colorBuffer;
