@@ -188,5 +188,5 @@ __host__ __device__ inline vec3 unit_vector(vec3 v) {
 
 
 __host__ __device__ inline vec3 lerp(float t,vec3 from, vec3 to) {
-    return from + t*to;
+    return from + t*(to-from);
 }
