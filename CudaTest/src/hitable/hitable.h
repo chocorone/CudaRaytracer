@@ -32,7 +32,7 @@ public:
 };
 
 
-/*class FlipNormals : public Hitable {
+class FlipNormals : public Hitable {
 public:
     __device__ FlipNormals(Hitable* p) : ptr(p) {}
 
@@ -57,4 +57,3 @@ public:
 
     Hitable* ptr;
 };
-*/

@@ -22,7 +22,6 @@
 #include "test_scene.h"
 
 #define RESOLUTION 1
-#define SAMPLES 100
 
 #define checkCudaErrors(val) check_cuda((val), #val, __FILE__, __LINE__)
 
@@ -47,23 +46,22 @@ __global__ void build_random_world(Hitable** list,
     int nx, int ny) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
 
-        random_scene(list, world, state);
+        //random_scene(list, world, state);
+        cornell_box_scene(list,world);
 
-        vec3 lookfrom(0, 0, 10);
-        vec3 lookat(0, 0, 0);
+        vec3 lookfrom(278, 278, -700);
+        vec3 lookat(278, 278, 0);
         float dist_to_focus = 10.0;
         float aperture = 0.0;
-        float vfov = 60.0;
+        float vfov = 40.0;
 
-        *camera = new MotionCamera(lookfrom,
+        *camera = new Camera(lookfrom,
             lookat,
             vec3(0, 1, 0),
             vfov,
             float(nx) / float(ny),
             aperture,
-            dist_to_focus,
-            0.0,
-            1.0);
+            dist_to_focus);
     }
 }
 
@@ -77,25 +75,22 @@ __global__ void build_mesh(Hitable** mesh,
     int nx, int ny, int cnt) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
 
-        random_scene(mesh, triangles, state);
         //draw_one_mesh(mesh, triangles, points, idxVertex, np, nt, state);
-        // bunny_inside_cornell_box(mesh, triangles, points, idxVertex, np, nt, state);
+        bunny_inside_cornell_box(mesh, triangles, points, idxVertex, np, nt, state);
 
-        vec3 lookfrom(0, 0, 10);
-        vec3 lookat(0, 0, 0);
+        vec3 lookfrom(278, 278, -700);
+        vec3 lookat(278, 278, 0);
         float dist_to_focus = 10.0;
         float aperture = 0.0;
-        float vfov = 60.0;
+        float vfov = 40.0;
 
-        *camera = new MotionCamera(lookfrom,
+        *camera = new Camera(lookfrom,
             lookat,
             vec3(0, 1, 0),
             vfov,
             float(nx) / float(ny),
             aperture,
-            dist_to_focus,
-            0.0,
-            1.0);
+            dist_to_focus);
     }
 }
 
@@ -199,7 +194,6 @@ __global__ void render(vec3* colorBuffer,
         //col += shade_nolight(r, world, 0, &(state[pixel_index]));
         
     }
-    //printf("%d,%d 完了\n", x, y);
     col /= float(ns);
     col[0] = sqrt(col[0]);
     col[1] = sqrt(col[1]);
@@ -208,30 +202,12 @@ __global__ void render(vec3* colorBuffer,
     colorBuffer[pixel_index] = clip(col);
 }
 
-__global__ void renderTest(vec3* colorBuffer,
-    curandState* state,
-    int nx,
-    int ny) {
-    int x = threadIdx.x + blockIdx.x * blockDim.x;
-    int y = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((x >= nx) || (y >= ny)) return;
 
-    int pixel_index = y * nx + x;
-    vec3 col(0, 0, 0);
+void AllocateMesh(Hitable** mesh,
+    Camera** camera, 
+    vec3* points,
+    vec3* idxVertex) {
 
-    col[0] = float(x) / float(nx);
-    col[1] = float(y) / float(ny);
-    col[2] = 0.5f;
-
-    colorBuffer[pixel_index] = clip(col);
-}
-
-/*void load_mesh() {
-    // --------------------------- allocate the mesh ----------------------------------------
-    vec3* points;
-    vec3* idxVertex;
-
-    // NOTE: must pre-allocate before initialize the elements
     checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
     checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
 
@@ -241,15 +217,14 @@ __global__ void renderTest(vec3* colorBuffer,
     std::cout << "# of points: " << nPoints << std::endl;
     std::cout << "# of triangles: " << nTriangles << std::endl;
 
-    // 大きくしてる？
+    // 大きくしてる
     for (int i = 0; i < nPoints; i++) { points[i] *= 30.0; }
-    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
-
+    //for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
+    
 
     Hitable** triangles;
     checkCudaErrors(cudaMallocManaged((void**)&triangles, nTriangles * sizeof(Hitable*)));
-    // --------------------------- ! allocate the mesh ---------------------------------------
-}*/
+}
 
 struct RGB {
     unsigned char r, g, b, a; //赤, 緑, 青, 透過
@@ -263,7 +238,8 @@ int main()
     int ny = 512 * RESOLUTION;
     int tx = 16;
     int ty = 16;
-    int max_depth = 15;
+    int max_depth = 10;
+    int samples = 50;
 
     int num_pixel = nx * ny;
 
@@ -304,24 +280,49 @@ int main()
     random_init << <blocks, threads >> > (nx, ny, curand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-
-    //load_mesh();
     
+    // --------------------------- allocate the mesh ----------------------------------------
+    vec3* points;
+    vec3* idxVertex;
+
+    // NOTE: must pre-allocate before initialize the elements
+    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
+
+    int nPoints, nTriangles;
+    parseObjByName("./objects/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
+
+    std::cout << "# of points: " << nPoints << std::endl;
+    std::cout << "# of triangles: " << nTriangles << std::endl;
+
+    // scale
+    for (int i = 0; i < nPoints; i++) { points[i] *= 30.0; }
+    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
+
+    Hitable** triangles;
+    checkCudaErrors(cudaMallocManaged((void**)&triangles, nTriangles * sizeof(Hitable*)));
+    // --------------------------- ! allocate the mesh ---------------------------------------
 
     // オブジェクト、カメラの生成
-    build_random_world << <1, 1 >> > (obj_list, world, camera, curand_state, nx, ny);
-    //build_mesh << <1, 1 >> > (world, camera, triangles, points,idxVertex, nPoints, nTriangles, curand_state, nx, ny, obj_cnt);
+    //build_random_world << <1, 1 >> > (obj_list, world, camera, curand_state, nx, ny);
+
+    //AllocateMesh(obj_list, camera, curand_state, nx, ny, obj_cnt);
+    build_mesh << <1, 1 >> > (world, camera, triangles, points,
+        idxVertex, nPoints, nTriangles, curand_state, nx, ny, obj_cnt);
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("シーン作成完了\n");
     
 
     // レンダリング
-    render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, SAMPLES,max_depth);
-    //renderTest <<<blocks,threads>>> (colorBuffer,curand_state, nx, ny);
+    render <<<blocks, threads >>> (colorBuffer, world, camera, curand_state, nx, ny, samples,max_depth);
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("レンダリング終了\n");
 
     //png書き出し
     RGB* rgb = new RGB[nx * ny];
@@ -336,6 +337,8 @@ int main()
     }
 
     stbi_write_png("images/picture_1.png",nx, ny,sizeof(RGB), rgb,0);
+
+    printf("画像書き出し\n");
     
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
@@ -350,6 +353,8 @@ int main()
     
 
     cudaDeviceReset();
+
+    printf("実行完了\n");
 
     return 0;
 }

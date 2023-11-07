@@ -148,3 +148,4 @@ __device__ bool MovingSphere::hit(const Ray& r,
     }
     return false;
 }
+
