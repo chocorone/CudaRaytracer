@@ -82,7 +82,6 @@
   <ItemGroup>
     <ClInclude Include="src\core\aabb.h" />
     <ClInclude Include="src\core\camera.h" />
-    <ClInclude Include="src\core\hitable.h" />
     <ClInclude Include="src\core\ray.h" />
     <ClInclude Include="src\core\vec3.h" />
     <ClInclude Include="src\hitable\hitable.h" />
@@ -91,7 +90,10 @@
     <ClInclude Include="src\material\material.h" />
     <ClInclude Include="src\material\texture.h" />
     <ClInclude Include="src\mesh\obj_loader.h" />
+    <ClInclude Include="src\shapes\box.h" />
+    <ClInclude Include="src\shapes\rectangle.h" />
     <ClInclude Include="src\shapes\sphere.h" />
+    <ClInclude Include="src\shapes\transform.h" />
     <ClInclude Include="src\shapes\triangle.h" />
     <ClInclude Include="src\test_scene.h" />
     <ClInclude Include="stb-master\stb_connected_components.h" />

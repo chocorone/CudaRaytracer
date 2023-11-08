@@ -3,6 +3,7 @@
 #include "rectangle.h"
 #include "../hitable/hitable.h"
 
+
 class Box : public Hitable {
 public:
     __device__ Box() {}

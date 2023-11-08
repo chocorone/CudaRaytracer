@@ -39,60 +39,7 @@ void check_cuda(cudaError_t result,
     }
 }
 
-__global__ void build_random_world(Hitable** list,
-    Hitable** world,
-    Camera** camera,
-    curandState* state,
-    int nx, int ny) {
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
 
-        //random_scene(list, world, state);
-        cornell_box_scene(list,world);
-
-        vec3 lookfrom(278, 278, -700);
-        vec3 lookat(278, 278, 0);
-        float dist_to_focus = 10.0;
-        float aperture = 0.0;
-        float vfov = 40.0;
-
-        *camera = new Camera(lookfrom,
-            lookat,
-            vec3(0, 1, 0),
-            vfov,
-            float(nx) / float(ny),
-            aperture,
-            dist_to_focus);
-    }
-}
-
-__global__ void build_mesh(Hitable** mesh,
-    Camera** camera,
-    Hitable** triangles,
-    vec3* points,
-    vec3* idxVertex,
-    int np, int nt,
-    curandState* state,
-    int nx, int ny, int cnt) {
-    if (threadIdx.x == 0 && blockIdx.x == 0) {
-
-        //draw_one_mesh(mesh, triangles, points, idxVertex, np, nt, state);
-        bunny_inside_cornell_box(mesh, triangles, points, idxVertex, np, nt, state);
-
-        vec3 lookfrom(278, 278, -700);
-        vec3 lookat(278, 278, 0);
-        float dist_to_focus = 10.0;
-        float aperture = 0.0;
-        float vfov = 40.0;
-
-        *camera = new Camera(lookfrom,
-            lookat,
-            vec3(0, 1, 0),
-            vfov,
-            float(nx) / float(ny),
-            aperture,
-            dist_to_focus);
-    }
-}
 
 __global__ void random_init(int nx,
     int ny,
@@ -203,10 +150,10 @@ __global__ void render(vec3* colorBuffer,
 }
 
 
-void AllocateMesh(Hitable** mesh,
-    Camera** camera, 
-    vec3* points,
-    vec3* idxVertex) {
+int BuildMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
+{
+    vec3* points;
+    vec3* idxVertex;
 
     checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
     checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
@@ -217,13 +164,73 @@ void AllocateMesh(Hitable** mesh,
     std::cout << "# of points: " << nPoints << std::endl;
     std::cout << "# of triangles: " << nTriangles << std::endl;
 
-    // 大きくしてる
-    for (int i = 0; i < nPoints; i++) { points[i] *= 30.0; }
-    //for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
-    
+    // scale
+    for (int i = 0; i < nPoints; i++) { points[i] *= 100.0; }
+    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
 
-    Hitable** triangles;
-    checkCudaErrors(cudaMallocManaged((void**)&triangles, nTriangles * sizeof(Hitable*)));
+    int obj_cnt = nTriangles + 10;
+    printf("obj_cnt %d\n", obj_cnt);
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+
+
+    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+    bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points,idxVertex, nPoints, nTriangles, state);
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("シーン作成完了\n");
+
+    return obj_cnt;
+}
+
+int BuildRandomWorld(Hitable** world, Hitable** obj_list,Camera** camera,curandState* state,int nx,int ny)
+{
+    int obj_cnt = 488;
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    random_scene << <1, 1 >> > (world, obj_list, state);
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("シーン作成完了\n");
+
+    return obj_cnt;
+}
+
+int BuildCornellBox(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
+{
+    int obj_cnt = 2;
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+    cornell_box_scene << <1, 1 >> > (world, obj_list, state);
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("シーン作成完了\n");
+
+    return obj_cnt;
+}
+
+int BuildBVHTest(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny) {
+    int obj_cnt = 1;
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    bvh_scene << <1, 1 >> > (world, obj_list, state);
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("シーン作成完了\n");
+
+    return obj_cnt;
 }
 
 struct RGB {
@@ -238,8 +245,8 @@ int main()
     int ny = 512 * RESOLUTION;
     int tx = 16;
     int ty = 16;
-    int max_depth = 10;
-    int samples = 50;
+    int max_depth = 16;
+    int samples = 2;
 
     int num_pixel = nx * ny;
 
@@ -257,19 +264,17 @@ int main()
 
     // 画素のメモリ確保
     vec3* colorBuffer;
-
     checkCudaErrors(cudaMallocManaged((void**)&colorBuffer, num_pixel * sizeof(vec3)));
 
     // 乱数列生成用のメモリ確保
     curandState* curand_state;
     checkCudaErrors(cudaMallocManaged((void**)&curand_state, num_pixel * sizeof(curandState)));
 
-    // シーン作成
-    int obj_cnt = 488;
-    Hitable** obj_list;
+    //シーン保存用の変数のメモリ確保
     Hitable** world;
     Camera** camera;
-    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+    Hitable** obj_list;
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, 10 * sizeof(Hitable*)));
     checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(Hitable*)));
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
 
@@ -277,44 +282,16 @@ int main()
     // 画素ごとに乱数を初期化
     dim3 blocks(nx / tx + 1, ny / ty + 1);
     dim3 threads(tx, ty);
-    random_init << <blocks, threads >> > (nx, ny, curand_state);
+    random_init <<<blocks, threads >>> (nx, ny, curand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
+
     
-    // --------------------------- allocate the mesh ----------------------------------------
-    vec3* points;
-    vec3* idxVertex;
-
-    // NOTE: must pre-allocate before initialize the elements
-    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
-    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
-
-    int nPoints, nTriangles;
-    parseObjByName("./objects/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
-
-    std::cout << "# of points: " << nPoints << std::endl;
-    std::cout << "# of triangles: " << nTriangles << std::endl;
-
-    // scale
-    for (int i = 0; i < nPoints; i++) { points[i] *= 30.0; }
-    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
-
-    Hitable** triangles;
-    checkCudaErrors(cudaMallocManaged((void**)&triangles, nTriangles * sizeof(Hitable*)));
-    // --------------------------- ! allocate the mesh ---------------------------------------
-
     // オブジェクト、カメラの生成
-    //build_random_world << <1, 1 >> > (obj_list, world, camera, curand_state, nx, ny);
-
-    //AllocateMesh(obj_list, camera, curand_state, nx, ny, obj_cnt);
-    build_mesh << <1, 1 >> > (world, camera, triangles, points,
-        idxVertex, nPoints, nTriangles, curand_state, nx, ny, obj_cnt);
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-
-    printf("シーン作成完了\n");
-    
+    //int obj_count = BuildRandomWorld(world,obj_list,camera, curand_state,nx, ny);
+    //int obj_count = BuildCornellBox(world, obj_list, camera, curand_state, nx, ny);
+    int obj_count = BuildMesh(world, obj_list, camera, curand_state, nx, ny);
+    //int obj_count = BuildBVHTest(world, obj_list, camera, curand_state, nx, ny);
 
     // レンダリング
     render <<<blocks, threads >>> (colorBuffer, world, camera, curand_state, nx, ny, samples,max_depth);
@@ -342,7 +319,7 @@ int main()
     
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
-    destroy << <1, 1 >> > (obj_list, world, camera, obj_cnt);
+    destroy << <1, 1 >> > (obj_list, world, camera,obj_count);
 
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(world));
