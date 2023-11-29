@@ -21,6 +21,9 @@
 #include "mesh/obj_loader.h"
 #include "test_scene.h"
 
+#include "Loader/FbxLoader.h"
+
+
 #define RESOLUTION 1
 
 #define checkCudaErrors(val) check_cuda((val), #val, __FILE__, __LINE__)
@@ -150,6 +153,45 @@ __global__ void render(vec3* colorBuffer,
 }
 
 
+
+int BuildFBXMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
+{
+    vec3* points;
+    vec3* idxVertex;
+
+    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
+
+    int nPoints, nTriangles;
+    if (!FBXLoad("./objects/small_bunny.fbx", points, idxVertex, nPoints, nTriangles)) 
+    {
+        std::cout << "fbx load failed" << std::endl;
+        return 0;
+    }
+
+    std::cout << "# of points: " << nPoints << std::endl;
+    std::cout << "# of triangles: " << nTriangles << std::endl;
+
+    // scale
+    for (int i = 0; i < nPoints; i++) { points[i] *= 100.0; }
+    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
+
+    int obj_cnt = nTriangles + 10;
+    printf("obj_cnt %d\n", obj_cnt);
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    draw_one_mesh_withoutBVH << <1, 1 >> > (world, obj_list, points, idxVertex, nPoints, nTriangles, state);
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("シーン作成完了\n");
+
+    return obj_cnt;
+}
+
 int BuildMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
 {
     vec3* points;
@@ -173,8 +215,11 @@ int BuildMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState*
     checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
 
 
-    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
-    bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points,idxVertex, nPoints, nTriangles, state);
+    //create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+    //bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points,idxVertex, nPoints, nTriangles, state);
+
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    draw_one_mesh_withoutBVH << <1, 1 >> > (world, obj_list, points, idxVertex, nPoints, nTriangles, state);
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
@@ -219,10 +264,32 @@ int BuildCornellBox(Hitable** world, Hitable** obj_list, Camera** camera, curand
 }
 
 int BuildBVHTest(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny) {
-    int obj_cnt = 1;
+    vec3* points;
+    vec3* idxVertex;
+
+    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
+
+    int nPoints, nTriangles;
+    parseObjByName("./objects/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
+
+    std::cout << "# of points: " << nPoints << std::endl;
+    std::cout << "# of triangles: " << nTriangles << std::endl;
+
+    // scale
+    for (int i = 0; i < nPoints; i++) { points[i] *= 100.0; }
+    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
+
+    int obj_cnt = nTriangles + 10;
+    printf("obj_cnt %d\n", obj_cnt);
     checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+
+
+    //create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+    //bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points,idxVertex, nPoints, nTriangles, state);
+
     create_camera_origin << <1, 1 >> > (camera, nx, ny);
-    bvh_scene << <1, 1 >> > (world, obj_list, state);
+    draw_one_mesh << <1, 1 >> > (world, obj_list, points, idxVertex, nPoints, nTriangles, state);
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
@@ -241,6 +308,9 @@ struct RGB {
 
 int main()
 {
+    fbxsdk::FbxManager* fbx_manager = fbxsdk::FbxManager::Create();
+
+    fbx_manager->Destroy();
     int nx = 1024 * RESOLUTION;
     int ny = 512 * RESOLUTION;
     int tx = 16;
@@ -288,10 +358,15 @@ int main()
 
     
     // オブジェクト、カメラの生成
+    // ランダムな球
     //int obj_count = BuildRandomWorld(world,obj_list,camera, curand_state,nx, ny);
+    // カーネルボックス
     //int obj_count = BuildCornellBox(world, obj_list, camera, curand_state, nx, ny);
-    int obj_count = BuildMesh(world, obj_list, camera, curand_state, nx, ny);
+    // objのテスト（BVHなし）
+    //int obj_count = BuildMesh(world, obj_list, camera, curand_state, nx, ny);
+    // obj+BVHのテスト
     //int obj_count = BuildBVHTest(world, obj_list, camera, curand_state, nx, ny);
+    int obj_count = BuildFBXMesh(world, obj_list, camera, curand_state, nx, ny);
 
     // レンダリング
     render <<<blocks, threads >>> (colorBuffer, world, camera, curand_state, nx, ny, samples,max_depth);
