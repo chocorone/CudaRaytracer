@@ -39,8 +39,6 @@ __device__ bool refract(const vec3& v, const vec3& n, float ni_over_nt, vec3& re
 }
 
 
-// Abstract class for material
-
 class Material {
 public:
     __device__ virtual bool scatter(const Ray& r_in,
@@ -66,6 +64,7 @@ public:
         Ray& scattered,
         curandState* state) const {
         vec3 target = rec.p + rec.normal + random_in_unit_sphere(state);
+        //vec3 target = rec.p + rec.normal;
         scattered = Ray(rec.p, target - rec.p, r_in.time());
         attenuation = albedo->value(0, 0, rec.p);
         return true;
@@ -161,19 +160,3 @@ public:
     Texture* emit;
 };
 
-
-class Isotropic : public Material {
-public:
-    __device__ Isotropic(Texture* a) : albedo(a) {}
-    __device__ virtual bool scatter(const Ray& r_in,
-        const HitRecord& rec,
-        vec3& attenuation,
-        Ray& scattered,
-        curandState* state) const {
-        scattered = Ray(rec.p, random_in_unit_sphere(state));
-        attenuation = albedo->value(rec.u, rec.v, rec.p);
-        return true;
-    }
-
-    Texture* albedo;
-};

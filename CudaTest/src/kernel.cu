@@ -89,6 +89,7 @@ __device__ vec3 shade(const Ray& r,
         }
     }
     else {
+        //if (depth != 16)printf("depth:%d\n", depth);
         return backgroundSky(r.direction());
     }
 }
@@ -135,7 +136,6 @@ __global__ void render(vec3* colorBuffer,
         Ray r = (*camera)->get_ray(u, v, state);
         col += shade(r, world, max_depth, &(state[pixel_index]));
         //col += shade_nolight(r, world, 0, &(state[pixel_index]));
-        
     }
     col /= float(ns);
     col[0] = sqrt(col[0]);
@@ -168,18 +168,18 @@ int BuildFBXMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandSta
     //std::cout << "# of triangles: " << nTriangles << std::endl;
 
     // scale
-    for (int i = 0; i < nPoints; i++) { points[i] *= 100.0; }
+    for (int i = 0; i < nPoints; i++) { points[i] *= 400.0; }
     //for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
 
     int obj_cnt = nTriangles + 10;
     printf("obj_cnt %d\n", obj_cnt);
     checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
 
-    create_camera_origin << <1, 1 >> > (camera, nx, ny);
-    draw_one_mesh_withNormal << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
+    //create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    //draw_one_mesh_withNormal << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
 
-    //cornell_box_scene << <1, 1 >> > (world, obj_list, state);
-    //bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
+    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+    bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
     //cornell_box_scene << <1, 1 >> > (world, obj_list, state);
 
     CHECK(cudaDeviceSynchronize());
@@ -303,26 +303,27 @@ struct RGB {
 
 int main()
 {
-    int nx = 1024 * RESOLUTION;
-    int ny = 512 * RESOLUTION;
-    int tx = 16;
-    int ty = 16;
-    int max_depth = 16;
-    int samples = 4;
+    // パラメーター設定
+    const int nx = 1024 * RESOLUTION;
+    const int ny = 512 * RESOLUTION;  
+    const int tx = 16;
+    const int ty = 16;
+    const int max_depth = 16;
+    const int samples = 8;
 
-    int num_pixel = nx * ny;
-
-    size_t heapSize = 1024*1024*1024;
-    size_t stackSize = 4096*2;
+    //ヒープサイズ・スタックサイズ指定
+    size_t heapSize = 1024 * 1024 * 1024;
+    size_t stackSize = 4096 * 2;
 
     cudaDeviceSetLimit(cudaLimitMallocHeapSize, heapSize);
     cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
-
-    //確認
     cudaDeviceGetLimit(&heapSize, cudaLimitMallocHeapSize);
     printf("Heap Size=%ld\n", heapSize);
     cudaDeviceGetLimit(&stackSize, cudaLimitStackSize);
     printf("Stack Size=%ld\n", stackSize);
+
+    const int num_pixel = nx * ny;
+
 
     // 画素のメモリ確保
     vec3* colorBuffer;
