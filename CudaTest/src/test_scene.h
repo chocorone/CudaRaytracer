@@ -91,7 +91,6 @@ __global__ void draw_one_mesh_withNormal(Hitable** world, Hitable** list, vec3* 
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
             list[l++] = new Triangle(v, mat, true);
-            //printf("ñ@ê¸ÅF%f,%f,%f\n", normal[i][0], normal[i][1], normal[i][2]);
         }
         list[l++] = new Sphere(vec3(0, -10, -1), 10, light);
         *world = new HitableList(list, l);
@@ -175,14 +174,14 @@ __global__ void bunny_inside_cornell_box(Hitable** world, Hitable** list, vec3* 
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
+        Material* mat = new Lambertian(new ConstantTexture(vec3(0.4, 0.7, 0.7)));
 
         int l = 0;
-        /*for (int i = 0; i < nt; i++) {
+        for (int i = 0; i < nt; i++) {
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            list[l++] = new Translate(new Triangle(v, mat, true), vec3(278, 278, -400));
-        }*/
+            list[l++] = new FlipNormals(new Translate(new Triangle(v, normal[i], mat, true), vec3(278, 200, -450)));
+        }
 
         Material* red = new   Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
         Material* white = new   Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
