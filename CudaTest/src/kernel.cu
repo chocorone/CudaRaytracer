@@ -85,11 +85,31 @@ __device__ vec3 shade(const Ray& r,
             return emitted + attenuation * shade(scattered, world, depth -1, state);
         }
         else {
-            return emitted;
+            return emitted+vec3(0.1,0.1,0.1);
         }
     }
     else {
         //if (depth != 16)printf("depth:%d\n", depth);
+        return backgroundSky(r.direction());
+    }
+}
+
+//ランバートシェードでのテスト
+__device__ vec3 LambertShade(const Ray& r,
+    Hitable** world,
+    int depth,
+    curandState* state) {
+    HitRecord rec;
+    if ((*world)->hit(r, 0.001, FLT_MAX, rec)) {
+        Ray scattered;
+        vec3 attenuation;
+        vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+        rec.mat_ptr->scatter(r, rec, attenuation, scattered, state);
+        float t = dot(-r.direction(), rec.normal);
+        if (t < 0)t = 0;
+        return attenuation * t * backgroundSky(r.direction()) * 0.2+ emitted;
+    }
+    else {
         return backgroundSky(r.direction());
     }
 }
@@ -135,6 +155,7 @@ __global__ void render(vec3* colorBuffer,
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
         col += shade(r, world, max_depth, &(state[pixel_index]));
+        //col += LambertShade(r, world, max_depth, &(state[pixel_index]));
         //col += shade_nolight(r, world, 0, &(state[pixel_index]));
     }
     col /= float(ns);
