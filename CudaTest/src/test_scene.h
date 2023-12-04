@@ -76,6 +76,28 @@ __global__ void draw_one_mesh(Hitable** world,Hitable** list,vec3* points,vec3* 
     }
 }
 
+
+__global__ void draw_one_mesh_withNormal(Hitable** world, Hitable** list, vec3* points, vec3* idxVertex,vec3* normal,
+    int np, int nt, curandState* state)
+{
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+        //Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
+        Material* light = new DiffuseLight(new ConstantTexture(vec3(400, 400, 400)));
+
+        int l = 0;
+        for (int i = 0; i < nt; i++) {
+            vec3 idx = idxVertex[i];
+            vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
+            list[l++] = new Triangle(v, mat, true);
+            //printf("–@üF%f,%f,%f\n", normal[i][0], normal[i][1], normal[i][2]);
+        }
+        list[l++] = new Sphere(vec3(0, -10, -1), 10, light);
+        *world = new HitableList(list, l);
+    }
+}
+
 __global__ void draw_one_mesh_withoutBVH(Hitable** world,Hitable** list,vec3* points,vec3* idxVertex,
     int np, int nt,curandState* state) 
 {
@@ -142,27 +164,25 @@ __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* 
         list[listIndex++] = (new RectangleXZ(0, 555, 0, 555, 0, white));
         list[listIndex++] = new FlipNormals(new RectangleXY(0, 555, 0, 555, 555, white));
 
-        //list[i++] = new Translate(new Rotate(new Box(vec3(0, 0, 0), vec3(165, 165, 165), metal), -18), vec3(130, 0, 65));
-        //list[i++] = new Translate(new Rotate(new Box(vec3(0, 0, 0), vec3(165, 330, 165), diele), 18), vec3(265, 0, 295));
 
 
         *world = new HitableList(list, listIndex);
     }
 }
 
-__global__ void bunny_inside_cornell_box(Hitable** world,Hitable** list,
-    vec3* points,vec3* idxVertex,int np, int nt,curandState* state) 
+__global__ void bunny_inside_cornell_box(Hitable** world, Hitable** list, vec3* points, vec3* idxVertex, vec3* normal,
+    int np, int nt, curandState* state)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
         Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
 
         int l = 0;
-        for (int i = 0; i < nt; i++) {
+        /*for (int i = 0; i < nt; i++) {
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
             list[l++] = new Translate(new Triangle(v, mat, true), vec3(278, 278, -400));
-        }
+        }*/
 
         Material* red = new   Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
         Material* white = new   Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
@@ -175,13 +195,6 @@ __global__ void bunny_inside_cornell_box(Hitable** world,Hitable** list,
         list[l++] = new FlipNormals(new RectangleXZ(0, 555, 0, 555, 555, white));
         list[l++] = (new RectangleXZ(0, 555, 0, 555, 0, white));
         list[l++] = new FlipNormals(new RectangleXY(0, 555, 0, 555, 555, white));
-
-
-        // Box‚ðŠÜ‚ß‚ç‚ê‚È‚¢
-        //Material* diele = new Dielectric(0.5);
-        //Material* metal = new Metal(vec3(0.7, 0.6, 0.5), 0.3);
-        //list[i++] = new Translate(new Rotate(new Box(vec3(0, 0, 0), vec3(165, 165, 165), metal), -18), vec3(130, 0, 65));
-        //list[i++] = new Translate(new Rotate(new Box(vec3(0, 0, 0), vec3(165, 330, 165), diele), 18), vec3(265, 0, 295));
 
 
         *world = new HitableList(list, l);

@@ -8,7 +8,7 @@
 #pragma comment(lib, "zlib-md.lib")
 
 
-bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,int &nPoints,int &nTriangles)
+bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* normal,int &nPoints,int &nTriangles)
 {
 	// マネージャー初期化
 	auto manager = FbxManager::Create();
@@ -62,6 +62,10 @@ bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,int &nPo
 		int two = mesh->GetPolygonVertex(polIndex, 1);
 		int three = mesh->GetPolygonVertex(polIndex, 2);
 		idxVertex[polIndex] = vec3(one, two, three);
+		//法線
+		FbxVector4 normalVec4;
+		mesh->GetPolygonVertexNormal(polIndex, 0, normalVec4);
+		normal[polIndex] = vec3(normalVec4[0], normalVec4[1], normalVec4[2]);
 	}
 
 	// マネージャー、シーンの破棄

@@ -14,6 +14,20 @@ public:
             vertices[i] = vs[i];
         }
         material = mat;
+        vec3 edge1, edge2;
+        edge1 = vertices[1] - vertices[0];
+        edge2 = vertices[2] - vertices[0];
+        normal = unit_vector(cross(edge1, edge2));
+        backCulling = cull;
+    };
+
+    __device__ Triangle(vec3 vs[3], vec3 triNormal, Material* mat, const bool cull = false) :
+        EPSILON(0.000001) {
+        for (int i = 0; i < 3; i++) {
+            vertices[i] = vs[i];
+        }
+        normal = triNormal;
+        material = mat;
         backCulling = cull;
     };
 
@@ -29,6 +43,7 @@ public:
     const float EPSILON;
 
     vec3 vertices[3];
+    vec3 normal;
     bool backCulling;
     Material* material;
 };
@@ -74,7 +89,7 @@ __device__ bool Triangle::hit(const Ray& r,
 
     rec.t = t;
     rec.p = r.point_at_t(rec.t);
-    rec.normal = unit_vector(cross(edge1, edge2));
+    rec.normal = normal;
     rec.mat_ptr = material;
 
     return true;
