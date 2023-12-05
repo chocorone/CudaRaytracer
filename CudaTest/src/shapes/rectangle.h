@@ -1,9 +1,7 @@
 #pragma once
 #include "../hitable/hitable.h"
 
-/**
- * Rectangle along XY axes
- */
+/*
 class RectangleXY : public Hitable {
 public:
     __device__ RectangleXY() {};
@@ -39,9 +37,6 @@ __device__ bool RectangleXY::hit(const Ray& r, float t0, float t1, HitRecord& re
 }
 
 
-/**
- * Rectangle along XZ axes
- */
 class RectangleXZ : public Hitable
 {
 public:
@@ -78,9 +73,6 @@ __device__ bool RectangleXZ::hit(const Ray& r, float t0, float t1, HitRecord& re
 }
 
 
-/**
- * Rectangle along YZ axes
- */
 class RectangleYZ : public Hitable {
 public:
     __device__ RectangleYZ() {};
@@ -114,3 +106,4 @@ __device__ bool RectangleYZ::hit(const Ray& r, float t0, float t1, HitRecord& re
     rec.normal = vec3(1, 0, 0);
     return true;
 }
+*/

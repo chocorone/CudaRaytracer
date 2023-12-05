@@ -3,8 +3,8 @@
 #include "../hitable/hitable.h"
 
 
-// Triangle primitive
 
+/*
 class Triangle : public Hitable {
 public:
     __device__ Triangle() : EPSILON(0.00001) {}
@@ -109,3 +109,4 @@ __device__ bool Triangle::bounding_box(float t0,
     bbox = AABB(vec3(minX, minY, minZ), vec3(maxX, maxY, maxZ));
     return true;
 }
+*/

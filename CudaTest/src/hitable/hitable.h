@@ -6,6 +6,7 @@
 
 class Material;
 
+// 衝突結果のデータを格納する
 struct HitRecord {
     float t;
     float u;
@@ -15,12 +16,22 @@ struct HitRecord {
     Material* mat_ptr;
 };
 
+class Transform {
+public:
+    __device__ Transform() { position = vec3(0, 0, 0); rotation = vec3(0, 0, 0); }
+    __device__ Transform(vec3 p,vec3 r) : position(p), rotation(r) {}
+    vec3 position;
+    vec3 rotation;
+};
 
-// The abstract class for all object that a ray can hit
-// two functions, hit and bounding_box 
+
+// レンダリングで使用されるオブジェクト
+// リストやBVHなども同様に扱う
 
 class Hitable {
 public:
+    __device__ Hitable(Transform* t) : transform(t) {}
+
     __device__ virtual bool hit(const Ray& r,
         float t_min,
         float t_max,
@@ -29,12 +40,14 @@ public:
     __device__ virtual bool bounding_box(float t0,
         float t1,
         AABB& box) const = 0;
+
+    Transform* transform;
 };
 
 
-class FlipNormals : public Hitable {
+/*class FlipNormals : public Hitable {
 public:
-    __device__ FlipNormals(Hitable* p) : ptr(p) {}
+    __device__ FlipNormals(Hitable* p, Transform* t) : Hitable(t), ptr(p) {}
 
     __device__ virtual bool hit(const Ray& r,
         float t_min,
@@ -57,3 +70,4 @@ public:
 
     Hitable* ptr;
 };
+*/

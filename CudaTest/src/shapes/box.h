@@ -3,7 +3,7 @@
 #include "rectangle.h"
 #include "../hitable/hitable.h"
 
-
+/*
 class Box : public Hitable {
 public:
     __device__ Box() {}
@@ -47,3 +47,4 @@ __device__ bool Box::hit(const Ray& r,
     HitRecord& rec) const {
     return list_ptr->hit(r, t_min, t_max, rec);
 }
+*/

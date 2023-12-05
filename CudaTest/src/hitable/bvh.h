@@ -44,7 +44,7 @@ struct BoxCompare {
     int mode;
 };
 
-
+/*
 class BVHNode : public Hitable {
 public:
     __device__ BVHNode() {}
@@ -147,3 +147,4 @@ __device__ bool BVHNode::hit(const Ray& r,
     }
     return false;
 }
+*/

@@ -4,9 +4,7 @@
 #include <float.h>
 
 
-/**
- * Tanslate
- */
+/*
 class Translate : public Hitable {
 public:
     __device__ Translate(Hitable* p, const vec3& displacement) : ptr(p), offset(displacement) {}
@@ -38,9 +36,6 @@ __device__ bool Translate::bounding_box(float t0, float t1, AABB& box) const {
 }
 
 
-/**
- * Rotation
- */
 class Rotate : public Hitable {
 public:
     __device__ Rotate(Hitable* p, float angle);
@@ -106,3 +101,4 @@ __device__ bool Rotate::hit(const Ray& r, float t_min, float t_max, HitRecord& r
     }
     return false;
 }
+*/
