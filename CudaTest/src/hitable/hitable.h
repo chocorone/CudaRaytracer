@@ -19,9 +19,20 @@ struct HitRecord {
 class Transform {
 public:
     __device__ Transform() { position = vec3(0, 0, 0); rotation = vec3(0, 0, 0); }
-    __device__ Transform(vec3 p,vec3 r) : position(p), rotation(r) {}
+    __device__ Transform(vec3 p, vec3 r) : position(p), rotation(r) {}
+    __device__ Ray TransformRay(const Ray& r)
+    {
+        return TranslateRay(r);
+    }
     vec3 position;
     vec3 rotation;
+
+private:
+    __device__ Ray TranslateRay(const Ray& r) const {
+        Ray moved_r(r.origin() - position, r.direction(), r.time());
+        return moved_r;
+    }
+
 };
 
 
@@ -32,7 +43,15 @@ class Hitable {
 public:
     __device__ Hitable(Transform* t) : transform(t) {}
 
-    __device__ virtual bool hit(const Ray& r,
+    __device__ bool hit(const Ray& r,
+        float t_min,
+        float t_max,
+        HitRecord& rec) 
+        {
+            return collision_detection(r, t_min, t_max, rec);
+        }
+
+    __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
         HitRecord& rec) const = 0;

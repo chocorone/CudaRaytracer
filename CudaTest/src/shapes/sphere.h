@@ -10,7 +10,7 @@ public:
         float r,
         Material* mat) :Hitable(t), radius(r), material(mat) {};
 
-    __device__ virtual bool hit(const Ray& r,
+    __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
         HitRecord& rec) const;
@@ -24,7 +24,7 @@ public:
 };
 
 
-__device__ bool Sphere::hit(const Ray& r,
+__device__ bool Sphere::collision_detection(const Ray& r,
     float t_min,
     float t_max,
     HitRecord& rec) const {
