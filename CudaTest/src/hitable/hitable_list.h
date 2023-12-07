@@ -5,8 +5,9 @@
 // 複数のオブジェクトを格納するリスト
 class HitableList : public Hitable {
 public:
-    __device__ HitableList(Transform* t) : Hitable(t) {}
-    __device__ HitableList(Hitable** l, int n,Transform* t): Hitable(t) { list = l; list_size = n; }
+    __device__ HitableList(){}
+    __device__ HitableList(Hitable** l, int n){ list = l; list_size = n; }
+    __device__ HitableList(Hitable** l, int n, Transform* t) : Hitable(t) { list = l; list_size = n; }
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,

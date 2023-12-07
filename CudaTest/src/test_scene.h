@@ -53,7 +53,7 @@ __global__ void random_scene(Hitable** world, Hitable** list,curandState* state)
         list[i++] = new Sphere(new Transform(vec3(0, 1, 0), vec3(0, 0, 0)), 1.0, new Dielectric(1.5));
         list[i++] = new Sphere(new Transform(vec3(-4, 1, 0), vec3(0, 0, 0)), 1.0, new Lambertian(checker));
         list[i++] = new Sphere(new Transform(vec3(4, 1, 0), vec3(0, 0, 0)), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
-        *world = new HitableList(list, i, new Transform());
+        *world = new HitableList(list, i);
     }
 }
 

@@ -28,7 +28,7 @@ __device__ bool Sphere::collision_detection(const Ray& r,
     float t_min,
     float t_max,
     HitRecord& rec) const {
-    vec3 oc = r.origin() - transform->position;
+    vec3 oc = r.origin();
     float a = dot(r.direction(), r.direction());
     float b = dot(oc, r.direction());
     float c = dot(oc, oc) - radius * radius;
@@ -38,7 +38,7 @@ __device__ bool Sphere::collision_detection(const Ray& r,
         if (tmp < t_max && tmp > t_min) {
             rec.t = tmp;
             rec.p = r.point_at_t(rec.t);
-            rec.normal = (rec.p - transform->position) / radius;
+            rec.normal = (rec.p) / radius;
             rec.mat_ptr = material;
             return true;
         }
@@ -46,7 +46,7 @@ __device__ bool Sphere::collision_detection(const Ray& r,
         if (tmp < t_max && tmp > t_min) {
             rec.t = tmp;
             rec.p = r.point_at_t(rec.t);
-            rec.normal = (rec.p - transform->position) / radius;
+            rec.normal = (rec.p) / radius;
             rec.mat_ptr = material;
             return true;
         }
@@ -58,7 +58,6 @@ __device__ bool Sphere::collision_detection(const Ray& r,
 __device__ bool Sphere::bounding_box(float t0,
     float t1,
     AABB& box) const {
-    box = AABB(transform->position - vec3(radius, radius, radius),
-        transform->position + vec3(radius, radius, radius));
+    box = AABB( - vec3(radius, radius, radius),vec3(radius, radius, radius));
     return true;
 }
