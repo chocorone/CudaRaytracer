@@ -5,7 +5,8 @@ class Rectangle : public Hitable {
 public:
     __device__ Rectangle() {};
     __device__ Rectangle(Material* mat) :mat_ptr(mat) {};
-    __device__ Rectangle(Material* mat, Transform* t) : mat_ptr(mat) {};
+    __device__ Rectangle(Material* mat, Transform* t) : Hitable(t),mat_ptr(mat) {
+    };
 
     __device__ virtual bool collision_detection(const Ray& r, float t0, float t1, HitRecord& rec) const;
     __device__ virtual bool bounding_box(float t0, float t1, AABB& box) const {

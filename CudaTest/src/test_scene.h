@@ -162,7 +162,8 @@ __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* 
         //list[listIndex++] = new FlipNormals(new RectangleXZ(0, 555, 0, 555, 555, white));
         //list[listIndex++] = (new RectangleXZ(0, 555, 0, 555, 0, white));
         //list[listIndex++] = new FlipNormals(new RectangleXY(0, 555, 0, 555, 555, white));
-        list[listIndex++] = new Rectangle(red,new Transform(vec3(0,0,0),vec3(0),vec3(1)));
+        list[listIndex++] = new Rectangle(red,new Transform(vec3(0,0,10),vec3(0),vec3(10,1,1)));
+        //list[listIndex++] = new Sphere(new Transform(vec3(10,10,0),vec3(0),vec3(1)), 1, red);
 
 
 
