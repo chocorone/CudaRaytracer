@@ -1,8 +1,37 @@
 #pragma once
 
-#include "../hitable/hitable.h"
 #include <float.h>
 
+
+class Transform {
+public:
+    __device__ Transform() { position = vec3(); rotation = vec3(); scale = vec3(1); }
+    __device__ Transform(vec3 p, vec3 r, vec3 s) : position(p), rotation(r), scale(s)
+    {
+        //printf("set transform\n");
+    }
+    __device__ Ray TransformRay(const Ray& r)
+    {
+        return  TranslateRay(ScaleRay(r));
+    }
+
+private:
+    __device__ Ray TranslateRay(const Ray& r) const {
+        Ray moved_r(r.origin() - position, r.direction(), r.time());
+        //printf("position %f,%f,%f\n", position.x(), position.y(), position.z());
+        return moved_r;
+    }
+    __device__ Ray ScaleRay(const Ray& r) const {
+        vec3 dir = r.direction() / scale;
+        Ray scaled_r(r.origin(), dir, r.time());
+        return scaled_r;
+    }
+
+    //public‚É‚µ‚½‚¢
+    vec3 position;
+    vec3 rotation;
+    vec3 scale;
+};
 
 /*
 class Translate : public Hitable {

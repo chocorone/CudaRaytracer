@@ -2,6 +2,7 @@
 
 #include "../core/ray.h"
 #include "../core/aabb.h"
+#include "transform.h"
 
 
 class Material;
@@ -15,31 +16,7 @@ struct HitRecord {
     vec3  normal;
     Material* mat_ptr;
 };
-class Transform {
-public:
-    __device__ Transform() { position = vec3(); rotation = vec3(); scale = vec3(1); }
-    __device__ Transform(vec3 p, vec3 r, vec3 s) : position(p), rotation(r), scale(s) { }
-    __device__ Ray TransformRay(const Ray& r)
-    {
-        return  TranslateRay(ScaleRay(r));
-    }
 
-private:
-    __device__ Ray TranslateRay(const Ray& r) const {
-        Ray moved_r(r.origin() - position, r.direction(), r.time());
-        return moved_r;
-    }
-    __device__ Ray ScaleRay(const Ray& r) const {
-        vec3 dir = r.direction()/ scale;
-        Ray scaled_r(r.origin(), dir, r.time());
-        return scaled_r;
-    }
-
-    //publicにしたい
-    vec3 position;
-    vec3 rotation;
-    vec3 scale;
-};
 
 // レンダリングで使用されるオブジェクト
 // リストやBVHなども同様に扱う
