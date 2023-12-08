@@ -21,10 +21,7 @@ public:
     __device__ Transform(vec3 p, vec3 r, vec3 s) : position(p), rotation(r), scale(s) { }
     __device__ Ray TransformRay(const Ray& r)
     {
-        //return ScaleRay(r);
         return  TranslateRay(ScaleRay(r));
-
-        //return  TranslateRay(r);
     }
 
 private:
@@ -33,9 +30,8 @@ private:
         return moved_r;
     }
     __device__ Ray ScaleRay(const Ray& r) const {
-        vec3 dir = vec3(r.direction().x() / scale.x(), r.direction().y() / scale.y(), r.direction().z());
-        dir = unit_vector(dir);
-        Ray scaled_r(r.origin(), dir, r.time() * scale.z());
+        vec3 dir = r.direction()/ scale;
+        Ray scaled_r(r.origin(), dir, r.time());
         return scaled_r;
     }
 
