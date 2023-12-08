@@ -142,6 +142,7 @@ __global__ void bvh_scene(Hitable** world, Hitable** list, curandState* state)
     }
 }
 
+*/
 __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* state)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
@@ -155,18 +156,20 @@ __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* 
         Material* metal = new Metal(vec3(0.7, 0.6, 0.5), 0.3);
 
         int listIndex = 0;
-        list[listIndex++] = new FlipNormals(new RectangleYZ(0, 555, 0, 555, 555, green));
-        list[listIndex++] = (new RectangleYZ(0, 555, 0, 555, 0, red));
-        list[listIndex++] = (new RectangleXZ(213, 343, 227, 332, 554, light));
-        list[listIndex++] = new FlipNormals(new RectangleXZ(0, 555, 0, 555, 555, white));
-        list[listIndex++] = (new RectangleXZ(0, 555, 0, 555, 0, white));
-        list[listIndex++] = new FlipNormals(new RectangleXY(0, 555, 0, 555, 555, white));
+        //list[listIndex++] = new FlipNormals(new RectangleYZ(0, 555, 0, 555, 555, green));
+        //list[listIndex++] = (new RectangleYZ(0, 555, 0, 555, 0, red));
+        //list[listIndex++] = (new RectangleXZ(213, 343, 227, 332, 554, light));
+        //list[listIndex++] = new FlipNormals(new RectangleXZ(0, 555, 0, 555, 555, white));
+        //list[listIndex++] = (new RectangleXZ(0, 555, 0, 555, 0, white));
+        //list[listIndex++] = new FlipNormals(new RectangleXY(0, 555, 0, 555, 555, white));
+        list[listIndex++] = new Rectangle(red,new Transform(vec3(0,0,0),vec3(0),vec3(1)));
 
 
 
         *world = new HitableList(list, listIndex);
     }
 }
+/*
 
 __global__ void bunny_inside_cornell_box(Hitable** world, Hitable** list, vec3* points, vec3* idxVertex, vec3* normal,
     int np, int nt, curandState* state)
@@ -200,9 +203,7 @@ __global__ void bunny_inside_cornell_box(Hitable** world, Hitable** list, vec3* 
         //*world = new BVHNode(list, l, 0, 1, state);
     }
 }
-
 */
-
 __global__ void create_camera_origin(Camera** camera, int nx, int ny) 
 {
     if (threadIdx.x == 0 && blockIdx.x == 0) {

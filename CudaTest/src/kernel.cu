@@ -261,14 +261,15 @@ int BuildMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState*
 
     return obj_cnt;
 }
-
+*/
 
 
 int BuildCornellBox(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
 {
     int obj_cnt = 2;
     checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
-    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+//    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
     cornell_box_scene << <1, 1 >> > (world, obj_list, state);
 
     CHECK(cudaDeviceSynchronize());
@@ -279,7 +280,7 @@ int BuildCornellBox(Hitable** world, Hitable** obj_list, Camera** camera, curand
 
     return obj_cnt;
 }
-
+/*
 int BuildBVHTest(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny) {
     vec3* points;
     vec3* idxVertex;
@@ -374,9 +375,9 @@ int main()
     
     // オブジェクト、カメラの生成
     // ランダムな球
-    int obj_count = BuildRandomWorld(world,obj_list,camera, curand_state,nx, ny);
+    //int obj_count = BuildRandomWorld(world,obj_list,camera, curand_state,nx, ny);
     // カーネルボックス
-    //int obj_count = BuildCornellBox(world, obj_list, camera, curand_state, nx, ny);
+    int obj_count = BuildCornellBox(world, obj_list, camera, curand_state, nx, ny);
     // objのテスト（BVHなし）
     //int obj_count = BuildMesh(world, obj_list, camera, curand_state, nx, ny);
     // obj+BVHのテスト
