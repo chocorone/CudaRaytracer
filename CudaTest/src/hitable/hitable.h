@@ -29,10 +29,10 @@ public:
     __device__ bool hit(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) 
+        HitRecord& rec,int frameIndex) 
         {
             Ray transformedRay = transform.TransformRay(r);
-            bool flag = collision_detection(transformedRay, t_min, t_max, rec);
+            bool flag = collision_detection(transformedRay, t_min, t_max, rec,frameIndex);
             rec.normal = rotate(rec.normal, transform.rotation);
             return flag;
         }
@@ -40,7 +40,7 @@ public:
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) const = 0;
+        HitRecord& rec, int frameIndex) const = 0;
 
     __device__ virtual bool bounding_box(float t0,
         float t1,

@@ -31,7 +31,7 @@ public:
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) const;
+        HitRecord& rec, int frameIndex) const;
 
     __device__ virtual bool bounding_box(float t0,
         float t1,
@@ -50,7 +50,7 @@ public:
 __device__ bool Triangle::collision_detection(const Ray& r,
     float t_min,
     float t_max,
-    HitRecord& rec) const {
+    HitRecord& rec, int frameIndex) const {
     if (dot(r.direction(), normal) < 0)return false;
     vec3 vertex0 = vertices[0];
     vec3 vertex1 = vertices[1];

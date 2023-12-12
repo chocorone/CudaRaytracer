@@ -8,7 +8,7 @@ public:
     __device__ Rectangle(Material* mat,bool flip, Transform t) : Hitable(t),flipNormal(flip) ,mat_ptr(mat) {
     };
 
-    __device__ virtual bool collision_detection(const Ray& r, float t0, float t1, HitRecord& rec) const;
+    __device__ virtual bool collision_detection(const Ray& r, float t0, float t1, HitRecord& rec, int frameIndex) const;
     __device__ virtual bool bounding_box(float t0, float t1, AABB& box) const {
         box = AABB(vec3(-0.5, -0.5, -0.0001), vec3(0.5, 0.5, 0.0001));
         return true;
@@ -18,7 +18,7 @@ public:
 };
 
 
-__device__ bool Rectangle::collision_detection(const Ray& r, float t_min, float t_max, HitRecord& rec) const {
+__device__ bool Rectangle::collision_detection(const Ray& r, float t_min, float t_max, HitRecord& rec, int frameIndex) const {
     
     vec3 normal = flipNormal ? vec3(0, 0, -1 ) : vec3(0, 0, 1);
     if (dot(r.direction(), normal) > 0)return false;

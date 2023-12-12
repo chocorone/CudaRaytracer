@@ -11,7 +11,7 @@ public:
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) const;
+        HitRecord& rec, int frameIndex) const;
     __device__ virtual bool bounding_box(float t0, float t1, AABB& box) const;
 
     Hitable** list;
@@ -22,12 +22,12 @@ public:
 __device__ bool HitableList::collision_detection(const Ray& r,
     float t_min,
     float t_max,
-    HitRecord& rec) const {
+    HitRecord& rec, int frameIndex) const {
     HitRecord tmp_rec;
     bool hit_anything = false;
     double closest_so_far = t_max;
     for (int i = 0; i < list_size; i++) {
-        if (list[i]->hit(r, t_min, closest_so_far, tmp_rec) && tmp_rec.t < closest_so_far) {
+        if (list[i]->hit(r, t_min, closest_so_far, tmp_rec, frameIndex) && tmp_rec.t < closest_so_far) {
             hit_anything = true;
             closest_so_far = tmp_rec.t;
             rec = tmp_rec;

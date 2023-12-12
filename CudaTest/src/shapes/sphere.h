@@ -13,7 +13,7 @@ public:
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) const;
+        HitRecord& rec, int frameIndex) const;
 
     __device__ virtual bool bounding_box(float t0,
         float t1,
@@ -27,7 +27,7 @@ public:
 __device__ bool Sphere::collision_detection(const Ray& r,
     float t_min,
     float t_max,
-    HitRecord& rec) const {
+    HitRecord& rec, int frameIndex) const {
     vec3 oc = r.origin();
     float a = dot(r.direction(), r.direction());
     float b = dot(oc, r.direction());

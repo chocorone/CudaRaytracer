@@ -40,8 +40,22 @@ private:
 
 };
 
-class KeyFrame {
+struct KeyFrame {
 public:
     int frame;
     Transform transform;
 };
+
+/*
+__host__ __device__ inline Transform get_key(KeyFrame* keys,int nowFrame) {
+    return v / v.length();
+}
+
+__host__ __device__ inline int get_next_frameIndex(KeyFrame* keys, int nowFrameIndex,int nowFrame) {
+    int size = sizeof(keys) / sizeof(keys);
+    if (size) {
+        return nowFrameIndex;
+    }
+ 
+    return keys[nowFrameIndex + 1].frame <= nowFrame?nowFrameIndex + 1:nowFrameIndex;
+}*/

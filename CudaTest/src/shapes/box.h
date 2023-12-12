@@ -12,7 +12,7 @@ public:
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) const;
+        HitRecord& rec, int frameIndex) const;
 
     __device__ virtual bool bounding_box(float t0,
         float t1,
@@ -42,6 +42,6 @@ __device__ Box::Box(const vec3& p0, const vec3& p1, Material* mat, Transform t) 
 __device__ bool Box::collision_detection(const Ray& r,
     float t_min,
     float t_max,
-    HitRecord& rec) const {
-    return list_ptr->hit(r, t_min, t_max, rec);
+    HitRecord& rec, int frameIndex) const {
+    return list_ptr->hit(r, t_min, t_max, rec,frameIndex);
 }

@@ -18,6 +18,7 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
+
 #include "test_scene.h"
 
 #include "Loader/FbxLoader.h"
@@ -74,14 +75,14 @@ __device__ vec3 backgroundSky(const vec3& d)
 __device__ vec3 shade(const Ray& r,
     Hitable** world,
     int depth,
-    curandState* state) {
+    curandState* state, int frameIndex) {
     HitRecord rec;
-    if ((*world)->hit(r, 0.001, FLT_MAX, rec)) {
+    if ((*world)->hit(r, 0.001, FLT_MAX, rec, frameIndex)) {
         Ray scattered;
         vec3 attenuation;
         vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
         if (depth > 0 && rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
-            return emitted + attenuation * shade(scattered, world, depth -1, state);
+            return emitted + attenuation * shade(scattered, world, depth -1, state,frameIndex);
         }
         else {
             return emitted+vec3(0.1,0.1,0.1);
@@ -97,9 +98,9 @@ __device__ vec3 shade(const Ray& r,
 __device__ vec3 LambertShade(const Ray& r,
     Hitable** world,
     int depth,
-    curandState* state) {
+    curandState* state,int frameIndex) {
     HitRecord rec;
-    if ((*world)->hit(r, 0.001, FLT_MAX, rec)) {
+    if ((*world)->hit(r, 0.001, FLT_MAX, rec, frameIndex)) {
         Ray scattered;
         vec3 attenuation;
         vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
@@ -116,9 +117,9 @@ __device__ vec3 LambertShade(const Ray& r,
 __device__ vec3 shade_normal(const Ray& r,
     Hitable** world,
     int depth,
-    curandState* state) {
+    curandState* state, int frameIndex) {
     HitRecord rec;
-    if ((*world)->hit(r, 0.001, FLT_MAX, rec)) {
+    if ((*world)->hit(r, 0.001, FLT_MAX, rec,frameIndex)) {
         Ray scattered;
         vec3 attenuation;
         return rec.normal;
@@ -135,7 +136,8 @@ __global__ void render(vec3* colorBuffer,
     int nx,
     int ny,
     int samples,
-    int max_depth) {
+    int max_depth,
+    int frameIndex) {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
     if ((x >= nx) || (y >= ny)) return;
@@ -148,9 +150,9 @@ __global__ void render(vec3* colorBuffer,
         float u = float(x + curand_uniform(&(state[pixel_index]))) / float(nx);
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
-        col += shade(r, world, max_depth, &(state[pixel_index]));
-        //col += LambertShade(r, world, max_depth, &(state[pixel_index]));
-        //col += shade_normal(r, world, 0, &(state[pixel_index]));
+        //col += shade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);
     col[0] = sqrt(col[0]);
@@ -318,8 +320,10 @@ int main()
     const int ny = 512 * RESOLUTION;  
     const int tx = 16;
     const int ty = 16;
-    const int max_depth = 16;
-    const int samples = 8;
+    const int max_depth = 8;
+    const int samples = 4;
+
+    const int maxFrame = 2;
 
     //ヒープサイズ・スタックサイズ指定
     size_t heapSize = 1024 * 1024 * 1024;
@@ -373,29 +377,39 @@ int main()
 
     
     // レンダリング
-    render <<<blocks, threads >>> (colorBuffer, world, camera, curand_state, nx, ny, samples,max_depth);
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
+    for (int frameIndex = 0; frameIndex < maxFrame; frameIndex++)
+    {
+        render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth,frameIndex);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
 
-    printf("レンダリング終了\n");
-
-    //png書き出し
-    RGB* rgb = new RGB[nx * ny];
-    for (int i = 0; i < ny ; i++) {
-        for (int j = 0; j < nx; j++) {
-            size_t pixel_index = (ny - 1 - i) * nx + j;
-            rgb[i * nx + j].r = char(255.99 * colorBuffer[pixel_index].r());
-            rgb[i * nx + j].g = char(255.99 * colorBuffer[pixel_index].g());
-            rgb[i * nx + j].b = char(255.99 * colorBuffer[pixel_index].b());
-            rgb[i * nx + j].a = 255;
+        //png書き出し
+        RGB* rgb = new RGB[nx * ny];
+        for (int i = 0; i < ny; i++) {
+            for (int j = 0; j < nx; j++) {
+                size_t pixel_index = (ny - 1 - i) * nx + j;
+                rgb[i * nx + j].r = char(255.99 * colorBuffer[pixel_index].r());
+                rgb[i * nx + j].g = char(255.99 * colorBuffer[pixel_index].g());
+                rgb[i * nx + j].b = char(255.99 * colorBuffer[pixel_index].b());
+                rgb[i * nx + j].a = 255;
+            }
         }
+
+        char* path = "images/moveTest/picture_";
+        char* png = " .png";
+        char* D = new char[strlen(path) + sizeof(frameIndex) + strlen(png) + 1];
+        strcpy(D, path);
+        sprintf(D + strlen(path), "%d", frameIndex);
+        strcat(D, png);
+        stbi_write_png(D, nx, ny, sizeof(RGB), rgb, 0);
+
+        printf("%dフレーム目:画像書き出し\n", frameIndex);
+        delete[] D;
     }
 
-    stbi_write_png("images/picture_1.png",nx, ny,sizeof(RGB), rgb,0);
 
-    printf("画像書き出し\n");
-    
+   
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
     destroy << <1, 1 >> > (obj_list, world, camera,obj_count);
