@@ -4,8 +4,8 @@
 class Rectangle : public Hitable {
 public:
     __device__ Rectangle() {};
-    __device__ Rectangle(Material* mat) :mat_ptr(mat) {};
-    __device__ Rectangle(Material* mat, Transform* t) : Hitable(t),mat_ptr(mat) {
+    __device__ Rectangle(Material* mat, bool flip) :mat_ptr(mat), flipNormal(flip) {};
+    __device__ Rectangle(Material* mat,bool flip, Transform* t) : Hitable(t),flipNormal(flip) ,mat_ptr(mat) {
     };
 
     __device__ virtual bool collision_detection(const Ray& r, float t0, float t1, HitRecord& rec) const;
@@ -14,10 +14,14 @@ public:
         return true;
     }
     Material* mat_ptr;
+    bool flipNormal;
 };
 
 
 __device__ bool Rectangle::collision_detection(const Ray& r, float t_min, float t_max, HitRecord& rec) const {
+    
+    vec3 normal = flipNormal ? vec3(0, 0, -1 ) : vec3(0, 0, 1);
+    if (dot(r.direction(), normal) > 0)return false;
     float t = -r.origin().z() / r.direction().z();
     if (t < t_min || t > t_max) return false;
 
@@ -35,6 +39,6 @@ __device__ bool Rectangle::collision_detection(const Ray& r, float t_min, float 
     rec.t = t;
     rec.mat_ptr = mat_ptr;
     rec.p = r.point_at_t(t);
-    rec.normal = vec3(0, 1, 0);
+    rec.normal = normal;
     return true;
 }
