@@ -74,6 +74,7 @@ __global__ void draw_one_mesh(Hitable** world,Hitable** list,vec3* points,vec3* 
         *world = new BVHNode(list, l, 0, 1, state);
     }
 }
+*/
 
 
 __global__ void draw_one_mesh_withNormal(Hitable** world, Hitable** list, vec3* points, vec3* idxVertex,vec3* normal,
@@ -83,18 +84,17 @@ __global__ void draw_one_mesh_withNormal(Hitable** world, Hitable** list, vec3* 
     {
         Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
         //Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
-        Material* light = new DiffuseLight(new ConstantTexture(vec3(400, 400, 400)));
-
+        
         int l = 0;
         for (int i = 0; i < nt; i++) {
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            list[l++] = new Triangle(v, mat, true);
+            list[l++] = new Triangle(v,  normal[i], mat,false,new Transform(vec3(0),vec3(0,180,0),vec3(1)), true);
         }
         *world = new HitableList(list, l);
     }
 }
-
+/*
 __global__ void draw_one_mesh_withoutBVH(Hitable** world,Hitable** list,vec3* points,vec3* idxVertex,
     int np, int nt,curandState* state) 
 {

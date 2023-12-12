@@ -18,7 +18,6 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#include "mesh/obj_loader.h"
 #include "test_scene.h"
 
 #include "Loader/FbxLoader.h"
@@ -105,7 +104,7 @@ __device__ vec3 LambertShade(const Ray& r,
         vec3 attenuation;
         vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
         rec.mat_ptr->scatter(r, rec, attenuation, scattered, state);
-        float t = dot(-r.direction(), rec.normal);
+        float t = dot(r.direction(), rec.normal);
         if (t < 0)t = 0;
         return attenuation * t * backgroundSky(r.direction()) * 0.2+ emitted;
     }
@@ -114,7 +113,7 @@ __device__ vec3 LambertShade(const Ray& r,
     }
 }
 
-__device__ vec3 shade_nolight(const Ray& r,
+__device__ vec3 shade_normal(const Ray& r,
     Hitable** world,
     int depth,
     curandState* state) {
@@ -122,15 +121,10 @@ __device__ vec3 shade_nolight(const Ray& r,
     if ((*world)->hit(r, 0.001, FLT_MAX, rec)) {
         Ray scattered;
         vec3 attenuation;
-        if (depth > 0&& rec.mat_ptr->scatter(r, rec, attenuation, scattered, state)) {
-            return attenuation * shade_nolight(scattered, world, depth - 1, state);
-        }
-        else {
-            return vec3(0, 0, 0);
-        }
+        return rec.normal;
     }
     else {
-        return vec3(1.0, 1.0, 1.0);
+        return backgroundSky(r.direction());
     }
 }
 
@@ -156,7 +150,7 @@ __global__ void render(vec3* colorBuffer,
         Ray r = (*camera)->get_ray(u, v, state);
         col += shade(r, world, max_depth, &(state[pixel_index]));
         //col += LambertShade(r, world, max_depth, &(state[pixel_index]));
-        //col += shade_nolight(r, world, 0, &(state[pixel_index]));
+        //col += shade_normal(r, world, 0, &(state[pixel_index]));
     }
     col /= float(ns);
     col[0] = sqrt(col[0]);
@@ -183,7 +177,7 @@ int BuildRandomWorld(Hitable** world, Hitable** obj_list, Camera** camera, curan
     return obj_cnt;
 }
 
-/*
+
 int BuildFBXMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
 {
     vec3* points;
@@ -195,28 +189,21 @@ int BuildFBXMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandSta
     checkCudaErrors(cudaMallocManaged((void**)&normals, 5000 * sizeof(vec3)));
 
     int nPoints, nTriangles;
-    if (!FBXLoad("./objects/small_bunny.fbx", points, idxVertex,normals, nPoints, nTriangles)) 
+    if (!FBXLoad("./objects/bunny2.fbx", points, idxVertex,normals, nPoints, nTriangles)) 
     {
         std::cout << "fbx load failed" << std::endl;
         return 0;
     }
 
-    //std::cout << "# of points: " << nPoints << std::endl;
-    //std::cout << "# of triangles: " << nTriangles << std::endl;
-
-    // scale
-    for (int i = 0; i < nPoints; i++) { points[i] *= 400.0; }
-    //for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
-
     int obj_cnt = nTriangles + 10;
     printf("obj_cnt %d\n", obj_cnt);
     checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
 
-    //create_camera_origin << <1, 1 >> > (camera, nx, ny);
-    //draw_one_mesh_withNormal << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    draw_one_mesh_withNormal << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
 
-    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
-    bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
+    //create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
+    //bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
     //cornell_box_scene << <1, 1 >> > (world, obj_list, state);
 
     CHECK(cudaDeviceSynchronize());
@@ -227,7 +214,7 @@ int BuildFBXMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandSta
 
     return obj_cnt;
 }
-
+/*
 int BuildMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
 {
     vec3* points;
@@ -377,12 +364,12 @@ int main()
     // ランダムな球
     //int obj_count = BuildRandomWorld(world,obj_list,camera, curand_state,nx, ny);
     // カーネルボックス
-    int obj_count = BuildCornellBox(world, obj_list, camera, curand_state, nx, ny);
+    // int obj_count = BuildCornellBox(world, obj_list, camera, curand_state, nx, ny);
     // objのテスト（BVHなし）
     //int obj_count = BuildMesh(world, obj_list, camera, curand_state, nx, ny);
     // obj+BVHのテスト
     //int obj_count = BuildBVHTest(world, obj_list, camera, curand_state, nx, ny);
-    //int obj_count = BuildFBXMesh(world, obj_list, camera, curand_state, nx, ny);
+    int obj_count = BuildFBXMesh(world, obj_list, camera, curand_state, nx, ny);
 
     
     // レンダリング

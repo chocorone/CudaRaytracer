@@ -2,14 +2,11 @@
 
 #include "../hitable/hitable.h"
 
-
-
-/*
 class Triangle : public Hitable {
 public:
     __device__ Triangle() : EPSILON(0.00001) {}
-    __device__ Triangle(vec3 vs[3], Material* mat, const bool cull = false) :
-        EPSILON(0.000001) {
+    __device__ Triangle(vec3 vs[3], Material* mat, bool flip, Transform* t, const bool cull = false) :
+        Hitable(t), flipNormal(flip) ,EPSILON(0.000001) {
         for (int i = 0; i < 3; i++) {
             vertices[i] = vs[i];
         }
@@ -21,8 +18,8 @@ public:
         backCulling = cull;
     };
 
-    __device__ Triangle(vec3 vs[3], vec3 triNormal, Material* mat, const bool cull = false) :
-        EPSILON(0.000001) {
+    __device__ Triangle(vec3 vs[3], vec3 triNormal,  Material* mat, bool flip, Transform* t, const bool cull = false) :
+        Hitable(t), flipNormal(flip), EPSILON(0.000001) {
         for (int i = 0; i < 3; i++) {
             vertices[i] = vs[i];
         }
@@ -31,7 +28,7 @@ public:
         backCulling = cull;
     };
 
-    __device__ virtual bool hit(const Ray& r,
+    __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
         HitRecord& rec) const;
@@ -44,15 +41,17 @@ public:
 
     vec3 vertices[3];
     vec3 normal;
+    bool flipNormal;
     bool backCulling;
     Material* material;
 };
 
 
-__device__ bool Triangle::hit(const Ray& r,
+__device__ bool Triangle::collision_detection(const Ray& r,
     float t_min,
     float t_max,
     HitRecord& rec) const {
+    if (dot(r.direction(), normal) < 0)return false;
     vec3 vertex0 = vertices[0];
     vec3 vertex1 = vertices[1];
     vec3 vertex2 = vertices[2];
@@ -109,4 +108,3 @@ __device__ bool Triangle::bounding_box(float t0,
     bbox = AABB(vec3(minX, minY, minZ), vec3(maxX, maxY, maxZ));
     return true;
 }
-*/
