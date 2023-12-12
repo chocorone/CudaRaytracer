@@ -196,3 +196,22 @@ __host__ __device__ inline vec3 unit_vector(vec3 v) {
 __host__ __device__ inline vec3 lerp(float t,vec3 from, vec3 to) {
     return from + t*(to-from);
 }
+
+__host__ __device__ inline vec3 rotate(vec3 origin,vec3 rotation) {
+    float radiansX = (M_PI / 180.) * rotation.x();
+    float sin_X = sin(radiansX);
+    float cos_X = cos(radiansX);
+    float radiansY = (M_PI / 180.) * rotation.y();
+    float sin_Y = sin(radiansY);
+    float cos_Y = cos(radiansY);
+    float radiansZ = -(M_PI / 180.) * rotation.z();
+    float sin_Z = sin(radiansZ);
+    float cos_Z = cos(radiansZ);
+
+    vec3 rotate0 = vec3(cos_Y * cos_Z, -cos_Y * sin_Z, sin_Y);
+    vec3 rotate1 = vec3(sin_X * sin_Y * cos_Z + cos_X * sin_Z, -sin_X * sin_Y * sin_Z + cos_X * cos_Z, -sin_X * cos_Y);
+    vec3 rotate2 = vec3(-cos_X * sin_Y * cos_Z + sin_X * sin_Z, cos_X * sin_Y * sin_Z + sin_X * cos_Z, cos_X * cos_Y);
+
+    origin = vec3((origin * rotate0).sum(), (origin * rotate1).sum(), (origin * rotate2).sum());
+    return origin;
+}
