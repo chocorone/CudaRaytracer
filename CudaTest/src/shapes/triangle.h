@@ -5,7 +5,7 @@
 class Triangle : public Hitable {
 public:
     __device__ Triangle() : EPSILON(0.00001) {}
-    __device__ Triangle(vec3 vs[3], Material* mat, bool flip, Transform t, const bool cull = false) :
+    __device__ Triangle(vec3 vs[3], Material* mat, bool flip, Transform* t, const bool cull = false) :
         Hitable(t), flipNormal(flip) ,EPSILON(0.000001) {
         for (int i = 0; i < 3; i++) {
             vertices[i] = vs[i];
@@ -18,7 +18,7 @@ public:
         backCulling = cull;
     };
 
-    __device__ Triangle(vec3 vs[3], vec3 triNormal,  Material* mat, bool flip, Transform t, const bool cull = false) :
+    __device__ Triangle(vec3 vs[3], vec3 triNormal,  Material* mat, bool flip, Transform* t, const bool cull = false) :
         Hitable(t), flipNormal(flip), EPSILON(0.000001) {
         for (int i = 0; i < 3; i++) {
             vertices[i] = vs[i];

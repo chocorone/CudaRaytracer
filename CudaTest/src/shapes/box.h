@@ -6,8 +6,8 @@
 
 class Box : public Hitable {
 public:
-    __device__ Box(Transform t) :Hitable(t) {}
-    __device__ Box(const vec3& p0, const vec3& p1, Material* mat, Transform t);
+    __device__ Box(Transform* t) :Hitable(t) {}
+    __device__ Box(const vec3& p0, const vec3& p1, Material* mat, Transform* t);
 
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
@@ -25,7 +25,7 @@ public:
     Hitable* list_ptr;
 };
 
-__device__ Box::Box(const vec3& p0, const vec3& p1, Material* mat, Transform t) : Hitable(t) {
+__device__ Box::Box(const vec3& p0, const vec3& p1, Material* mat, Transform* t) : Hitable(t) {
     p_min = p0;
     p_max = p1;
 
