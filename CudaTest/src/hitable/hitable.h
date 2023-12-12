@@ -32,7 +32,9 @@ public:
         HitRecord& rec) 
         {
             Ray transformedRay = transform->TransformRay(r);
-            return collision_detection(transformedRay, t_min, t_max, rec);
+            bool flag = collision_detection(transformedRay, t_min, t_max, rec);
+            rec.normal = rotate(rec.normal, transform->rotation);
+            return flag;
         }
 
     __device__ virtual bool collision_detection(const Ray& r,
@@ -46,31 +48,3 @@ public:
 
     Transform* transform;
 };
-
-
-/*class FlipNormals : public Hitable {
-public:
-    __device__ FlipNormals(Hitable* p, Transform* t) : Hitable(t), ptr(p) {}
-
-    __device__ virtual bool hit(const Ray& r,
-        float t_min,
-        float t_max,
-        HitRecord& rec) const {
-        if (ptr->hit(r, t_min, t_max, rec)) {
-            rec.normal = -rec.normal;
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
-
-    __device__ virtual bool bounding_box(float t0,
-        float t1,
-        AABB& box) const {
-        return ptr->bounding_box(t0, t1, box);
-    }
-
-    Hitable* ptr;
-};
-*/
