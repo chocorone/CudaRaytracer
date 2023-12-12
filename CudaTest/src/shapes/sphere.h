@@ -5,8 +5,8 @@
 
 class Sphere : public Hitable {
 public:
-    __device__ Sphere(Transform* t):Hitable(t) {}
-    __device__ Sphere(Transform* t,
+    __device__ Sphere(Transform t):Hitable(t) {}
+    __device__ Sphere(Transform t,
         float r,
         Material* mat) :Hitable(t), radius(r), material(mat) {};
 

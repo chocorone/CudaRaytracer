@@ -23,17 +23,17 @@ struct HitRecord {
 
 class Hitable {
 public:
-    __device__ Hitable(Transform* t) : transform(t) {}
-    __device__ Hitable() { transform = new Transform(); }
+    __device__ Hitable(Transform t) : transform(t) {}
+    __device__ Hitable() { transform = Transform(); }
 
     __device__ bool hit(const Ray& r,
         float t_min,
         float t_max,
         HitRecord& rec) 
         {
-            Ray transformedRay = transform->TransformRay(r);
+            Ray transformedRay = transform.TransformRay(r);
             bool flag = collision_detection(transformedRay, t_min, t_max, rec);
-            rec.normal = rotate(rec.normal, transform->rotation);
+            rec.normal = rotate(rec.normal, transform.rotation);
             return flag;
         }
 
@@ -46,5 +46,5 @@ public:
         float t1,
         AABB& box) const = 0;
 
-    Transform* transform;
+    Transform transform;
 };

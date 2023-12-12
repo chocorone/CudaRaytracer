@@ -3,7 +3,7 @@
 #include <float.h>
 
 
-class Transform {
+struct Transform {
 public:
     __device__ Transform() { position = vec3(); rotation = vec3(); scale = vec3(1); }
     __device__ Transform(vec3 p, vec3 r, vec3 s) : position(p), rotation(r), scale(s)
@@ -38,4 +38,10 @@ private:
         return scaled_r;
     }
 
+};
+
+class KeyFrame {
+public:
+    int frame;
+    Transform transform;
 };

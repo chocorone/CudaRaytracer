@@ -27,31 +27,31 @@ __global__ void random_scene(Hitable** world, Hitable** list,curandState* state)
         Texture* checker = new CheckerTexture(new ConstantTexture(vec3(0.2, 0.3, 0.1)),
             new ConstantTexture(vec3(0.9, 0.9, 0.9)));
         int i = 0;
-        list[i++] = new Sphere(new Transform(vec3(0, -1000.0, -1), vec3(0), vec3(1)), 1000, new Lambertian(checker));
+        list[i++] = new Sphere(Transform(vec3(0, -1000.0, -1), vec3(0), vec3(1)), 1000, new Lambertian(checker));
         for (int a = -11; a < 11; a++) {
             for (int b = -11; b < 11; b++) {
                 float choose_mat = rand(state);
                 vec3 center(a + 0.9 * rand(state), 0.2, b + 0.9 * rand(state));
                 if (choose_mat < 0.8f) {
-                    list[i++] = new Sphere(new Transform(center,vec3(0),vec3(1)), 0.2,
+                    list[i++] = new Sphere(Transform(center,vec3(0),vec3(1)), 0.2,
                         new Lambertian(new ConstantTexture(vec3(rand(state), rand(state), rand(state)))));
                     continue;
                 }
                 else if (choose_mat < 0.95f) {
-                    list[i++] = new Sphere(new Transform(center, vec3(0), vec3(1)), 0.2,
+                    list[i++] = new Sphere(Transform(center, vec3(0), vec3(1)), 0.2,
                         new Metal(vec3(0.5f * (1.0f + rand(state)),
                             0.5f * (1.0f + rand(state)),
                             0.5f * (1.0f + rand(state))),
                             0.5f * rand(state)));
                 }
                 else {
-                    list[i++] = new Sphere(new Transform(center, vec3(0), vec3(1)), 0.2, new Dielectric(rand(state) * 2));
+                    list[i++] = new Sphere(Transform(center, vec3(0), vec3(1)), 0.2, new Dielectric(rand(state) * 2));
                 }
             }
         }
-        list[i++] = new Sphere(new Transform(vec3(0, 1, 0), vec3(0), vec3(1)), 1.0, new Dielectric(1.5));
-        list[i++] = new Sphere(new Transform(vec3(-4, 1, 0), vec3(0), vec3(1)), 1.0, new Lambertian(checker));
-        list[i++] = new Sphere(new Transform(vec3(4, 1, 0), vec3(0), vec3(1)), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
+        list[i++] = new Sphere(Transform(vec3(0, 1, 0), vec3(0), vec3(1)), 1.0, new Dielectric(1.5));
+        list[i++] = new Sphere(Transform(vec3(-4, 1, 0), vec3(0), vec3(1)), 1.0, new Lambertian(checker));
+        list[i++] = new Sphere(Transform(vec3(4, 1, 0), vec3(0), vec3(1)), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0));
         *world = new HitableList(list, i);
     }
 }
@@ -89,9 +89,9 @@ __global__ void draw_one_mesh_withNormal(Hitable** world, Hitable** list, vec3* 
         for (int i = 0; i < nt; i++) {
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            list[l++] = new Triangle(v,  normal[i], mat,false,new Transform(vec3(0),vec3(0,180,0),vec3(1)), true);
+            list[l++] = new Triangle(v,  normal[i], mat,false, Transform(), true);
         }
-        *world = new HitableList(list, l);
+        *world = new HitableList(list, l, Transform(vec3(0,-10,0),vec3(-20,180,0),vec3(1.5)));
     }
 }
 /*
@@ -161,7 +161,7 @@ __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* 
         //list[listIndex++] = new FlipNormals(new RectangleXZ(0, 555, 0, 555, 555, white));
         //list[listIndex++] = (new RectangleXZ(0, 555, 0, 555, 0, white));
         //list[listIndex++] = new FlipNormals(new RectangleXY(0, 555, 0, 555, 555, white));
-        list[listIndex++] = new Rectangle(red,true,new Transform(vec3(0,0,10),vec3(0,180,90),vec3(6,3,1)));
+        list[listIndex++] = new Rectangle(red,true, Transform(vec3(0,0,10),vec3(0,0,90),vec3(6,3,1)));
         //list[listIndex++] = new Sphere(new Transform(vec3(0),vec3(0),vec3(10,10,1)), 1, red);
 
 
