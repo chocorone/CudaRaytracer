@@ -42,8 +42,6 @@ void check_cuda(cudaError_t result,
     }
 }
 
-
-
 __global__ void random_init(int nx,
     int ny,
     curandState* state) {
@@ -54,21 +52,14 @@ __global__ void random_init(int nx,
     curand_init(0, pixel_index, 0, &state[pixel_index]);
 }
 
-__global__ void destroy(Hitable** obj_list,
-    Hitable** world,
-    Camera** camera,
-    int obj_cnt) {
-    for (int i = 0; i < obj_cnt; i++) {
-        delete* (obj_list + i);
-    }
-    delete* world;
-    delete* camera;
-}
-
 __global__ void destroy(HitableList** world,
     Camera** camera) {
-    delete* world;
-    delete* camera;
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        (*world)->freeMemory();
+        delete* world;
+        delete* camera;
+    }
 }
 
 __device__ vec3 backgroundSky(const vec3& d)
@@ -188,7 +179,6 @@ int BuildRandomWorld(Hitable** world, Hitable** obj_list, Camera** camera, curan
 
 void BuildAppendTest(HitableList** world, Camera** camera, curandState* state, int nx, int ny)
 {
-
     create_camera_origin << <1, 1 >> > (camera, nx, ny);
     append_test << <1, 1 >> > (world);
 
@@ -370,8 +360,6 @@ int main()
     //シーン保存用の変数のメモリ確保
     HitableList** world;
     Camera** camera;
-    //Hitable** obj_list;
-    //checkCudaErrors(cudaMallocManaged((void**)&obj_list, 10 * sizeof(Hitable*)));
     checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
 
@@ -430,15 +418,12 @@ int main()
     }
 
 
-   
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
-    //destroy << <1, 1 >> > (obj_list, world, camera, obj_count);
     destroy << <1, 1 >> > ( world, camera);
 
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(world));
-    //checkCudaErrors(cudaFree(obj_list));
     checkCudaErrors(cudaFree(camera));
     checkCudaErrors(cudaFree(curand_state));
     checkCudaErrors(cudaFree(colorBuffer));

@@ -36,6 +36,11 @@ public:
 
         free(tmp); 
     }
+    __device__  void freeMemory()
+    {
+        free(list);
+        list_size = 0;
+    }
 
     Hitable** list;
     int list_size;
@@ -85,3 +90,4 @@ __device__ bool HitableList::bounding_box(float t0,
     }
     return true;
 }
+
