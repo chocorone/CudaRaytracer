@@ -44,6 +44,7 @@ public:
     }
 
     __host__ __device__ inline void make_unit_vector();
+    __host__ __device__ inline float sum();
 
     float e[3];
 };
@@ -62,6 +63,11 @@ inline std::ostream& operator<<(std::ostream& os, const vec3& t) {
 __host__ __device__ inline void vec3::make_unit_vector() {
     float k = 1.0 / sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
     e[0] *= k; e[1] *= k; e[2] *= k;
+}
+
+inline __host__ __device__ float vec3::sum()
+{
+    return e[0] + e[1] + e[2];
 }
 
 __host__ __device__ inline vec3 operator+(const vec3& v1, const vec3& v2) {
