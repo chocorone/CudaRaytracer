@@ -46,16 +46,26 @@ public:
     Transform transform;
 };
 
-/*
-__host__ __device__ inline Transform get_key(KeyFrame* keys,int nowFrame) {
-    return v / v.length();
-}
+struct AnimationData {
+public:
+    KeyFrame* keyframs;
+    int currentFrameIndex;
+    __device__ Transform Get_NextTransform(int nextFrame) {
+        if (sizeof(keyframs) / sizeof(KeyFrame) <= currentFrameIndex + 1)return keyframs[currentFrameIndex].transform;
 
-__host__ __device__ inline int get_next_frameIndex(KeyFrame* keys, int nowFrameIndex,int nowFrame) {
-    int size = sizeof(keys) / sizeof(keys);
-    if (size) {
-        return nowFrameIndex;
+        //•âŠ®‚µ‚½Transform‚ð•Ô‚·
+        Transform begin = keyframs[currentFrameIndex].transform;
+        Transform end = keyframs[currentFrameIndex + 1].transform;
+        float t = (nextFrame-keyframs[currentFrameIndex].frame) / (keyframs[currentFrameIndex + 1].frame - keyframs[currentFrameIndex].frame);
+        vec3 position = SLerp(begin.position, end.position, t);
+        vec3 rotation = SLerp(begin.rotation, end.rotation, t);
+        vec3 scale = SLerp(begin.scale, end.scale, t);
+
+        return Transform(position, rotation, scale);
     }
- 
-    return keys[nowFrameIndex + 1].frame <= nowFrame?nowFrameIndex + 1:nowFrameIndex;
-}*/
+
+    __device__ void SetNext(int nextFrame) {
+        if (sizeof(keyframs) / sizeof(KeyFrame) <= currentFrameIndex+1) return;
+        if (keyframs[currentFrameIndex + 1].frame >= nextFrame)currentFrameIndex++;
+    }
+};

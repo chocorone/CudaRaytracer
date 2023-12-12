@@ -215,3 +215,20 @@ __host__ __device__ inline vec3 rotate(vec3 origin,vec3 rotation) {
     origin = vec3((origin * rotate0).sum(), (origin * rotate1).sum(), (origin * rotate2).sum());
     return origin;
 }
+
+__host__ __device__ inline vec3 SLerp(vec3 start, vec3 end, float t) {
+
+    // 2ƒxƒNƒgƒ‹ŠÔ‚ÌŠp“xi‰sŠp‘¤j
+    float angle = acos(dot(start, end));
+
+    // sinƒÆ
+    float SinTh = sin(angle);
+
+    // •âŠÔŒW”
+    float Ps = sin(angle * (1 - t));
+    float Pe = sin(angle * t);
+
+    vec3 out = (Ps * start + Pe * end) / SinTh;
+
+    return unit_vector(out);
+}
