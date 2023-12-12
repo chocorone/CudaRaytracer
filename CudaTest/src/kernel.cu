@@ -65,6 +65,12 @@ __global__ void destroy(Hitable** obj_list,
     delete* camera;
 }
 
+__global__ void destroy(HitableList** world,
+    Camera** camera) {
+    delete* world;
+    delete* camera;
+}
+
 __device__ vec3 backgroundSky(const vec3& d)
 {
     vec3 v = unit_vector(d);
@@ -73,7 +79,7 @@ __device__ vec3 backgroundSky(const vec3& d)
 }
 
 __device__ vec3 shade(const Ray& r,
-    Hitable** world,
+    HitableList** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -96,7 +102,7 @@ __device__ vec3 shade(const Ray& r,
 
 //ランバートシェードでのテスト
 __device__ vec3 LambertShade(const Ray& r,
-    Hitable** world,
+    HitableList** world,
     int depth,
     curandState* state,int frameIndex) {
     HitRecord rec;
@@ -115,7 +121,7 @@ __device__ vec3 LambertShade(const Ray& r,
 }
 
 __device__ vec3 shade_normal(const Ray& r,
-    Hitable** world,
+    HitableList** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -130,7 +136,7 @@ __device__ vec3 shade_normal(const Ray& r,
 }
 
 __global__ void render(vec3* colorBuffer,
-    Hitable** world,
+    HitableList** world,
     Camera** camera,
     curandState* state,
     int nx,
@@ -150,8 +156,8 @@ __global__ void render(vec3* colorBuffer,
         float u = float(x + curand_uniform(&(state[pixel_index]))) / float(nx);
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
-        //col += shade(r, world, max_depth, &(state[pixel_index]),frameIndex);
-        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        col += shade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        //col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
         //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);
@@ -177,6 +183,20 @@ int BuildRandomWorld(Hitable** world, Hitable** obj_list, Camera** camera, curan
     printf("シーン作成完了\n");
 
     return obj_cnt;
+}
+
+
+void BuildAppendTest(HitableList** world, Camera** camera, curandState* state, int nx, int ny)
+{
+
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    append_test << <1, 1 >> > (world);
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("シーン作成完了\n");
 }
 
 
@@ -348,11 +368,11 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&curand_state, num_pixel * sizeof(curandState)));
 
     //シーン保存用の変数のメモリ確保
-    Hitable** world;
+    HitableList** world;
     Camera** camera;
-    Hitable** obj_list;
-    checkCudaErrors(cudaMallocManaged((void**)&obj_list, 10 * sizeof(Hitable*)));
-    checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(Hitable*)));
+    //Hitable** obj_list;
+    //checkCudaErrors(cudaMallocManaged((void**)&obj_list, 10 * sizeof(Hitable*)));
+    checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
 
     
@@ -373,11 +393,12 @@ int main()
     //int obj_count = BuildMesh(world, obj_list, camera, curand_state, nx, ny);
     // obj+BVHのテスト
     //int obj_count = BuildBVHTest(world, obj_list, camera, curand_state, nx, ny);
-    int obj_count = BuildFBXMesh(world, obj_list, camera, curand_state, nx, ny);
+    //int obj_count = BuildFBXMesh(world, obj_list, camera, curand_state, nx, ny);
+    BuildAppendTest(world, camera, curand_state, nx, ny);
 
     
     // レンダリング
-    for (int frameIndex = 0; frameIndex < maxFrame; frameIndex++)
+    for (int frameIndex = 0; frameIndex <= maxFrame; frameIndex++)
     {
         render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth,frameIndex);
         CHECK(cudaDeviceSynchronize());
@@ -412,11 +433,12 @@ int main()
    
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
-    destroy << <1, 1 >> > (obj_list, world, camera,obj_count);
+    //destroy << <1, 1 >> > (obj_list, world, camera, obj_count);
+    destroy << <1, 1 >> > ( world, camera);
 
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(world));
-    checkCudaErrors(cudaFree(obj_list));
+    //checkCudaErrors(cudaFree(obj_list));
     checkCudaErrors(cudaFree(camera));
     checkCudaErrors(cudaFree(curand_state));
     checkCudaErrors(cudaFree(colorBuffer));

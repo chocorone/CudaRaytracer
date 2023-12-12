@@ -5,7 +5,7 @@
 // 複数のオブジェクトを格納するリスト
 class HitableList : public Hitable {
 public:
-    __device__ HitableList(){}
+    __device__ HitableList() { list = new Hitable * (); list_size = 0; }
     __device__ HitableList(Hitable** l, int n){ list = l; list_size = n; }
     __device__ HitableList(Hitable** l, int n, Transform t) : Hitable(t) { list = l; list_size = n; }
     __device__ virtual bool collision_detection(const Ray& r,
@@ -13,6 +13,29 @@ public:
         float t_max,
         HitRecord& rec, int frameIndex) const;
     __device__ virtual bool bounding_box(float t0, float t1, AABB& box) const;
+    __device__ void append(Hitable* data)
+    {
+        Hitable** tmp = (Hitable**)malloc(sizeof(Hitable*) * list_size);
+
+        for (int i = 0; i < list_size; i++)
+        {
+            tmp[i] = list[i];
+        }
+
+        free(list);
+
+        list_size++;
+
+        list = (Hitable**)malloc(sizeof(Hitable*) * list_size);
+
+        for (int i = 0; i < list_size - 1; i++)
+        {
+            list[i] = tmp[i];
+        }
+        list[list_size - 1] = data;
+
+        free(tmp); 
+    }
 
     Hitable** list;
     int list_size;

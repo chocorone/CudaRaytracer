@@ -19,6 +19,23 @@ __device__ float rand(curandState* state) {
     return float(curand_uniform(state));
 }
 
+// オブジェクトの生成
+__global__ void append_test(HitableList** world)
+{
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        *world = new HitableList();
+
+        Texture* checker = new CheckerTexture(new ConstantTexture(vec3(0.2, 0.3, 0.1)),
+            new ConstantTexture(vec3(0.9, 0.9, 0.9)));
+        (*world)->append(new Sphere(Transform(vec3(0, 1, 0), vec3(0), vec3(1)), 1.0, new Dielectric(1.5)));
+        (*world)->append(new Sphere(Transform(vec3(-4, 1, 0), vec3(0), vec3(1)), 1.0, new Lambertian(checker)));
+        (*world)->append(new Sphere(Transform(vec3(4, 1, 0), vec3(0), vec3(1)), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0)));
+    }
+}
+
+
+
 //デバイス側の処理
 __global__ void random_scene(Hitable** world, Hitable** list,curandState* state)
 {
@@ -94,54 +111,7 @@ __global__ void draw_one_mesh_withNormal(Hitable** world, Hitable** list, vec3* 
         *world = new HitableList(list, l, Transform(vec3(0,-10,0),vec3(-20,180,0),vec3(1.5)));
     }
 }
-/*
-__global__ void draw_one_mesh_withoutBVH(Hitable** world,Hitable** list,vec3* points,vec3* idxVertex,
-    int np, int nt,curandState* state) 
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
 
-        int l = 0;
-        for (int i = 0; i < nt; i++) {
-            vec3 idx = idxVertex[i];
-            vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            list[l++] = new Triangle(v, mat, true);
-        }
-        *world = new HitableList(list, l);
-    }
-}
-
-__global__ void bvh_scene(Hitable** world, Hitable** list, curandState* state)
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        int nb = 10;
-        Hitable** boxlist1 = new Hitable * [1000];
-        Material* ground = new Lambertian(new ConstantTexture(vec3(0.48, 0.83, 0.53)));
-
-        int b = 0;
-        for (int i = 0; i < nb; i++) {
-            for (int j = 0; j < nb; j++) {
-                float w = 100;
-                float x0 = -1000 + i * w;
-                float z0 = -1000 + j * w;
-                float y0 = 0;
-                float x1 = x0 + w;
-                float y1 = 100 * (rand(state) + 0.01);
-                float z1 = z0 + w;
-                boxlist1[b++] = new Box(vec3(x0, y0, z0), vec3(x1, y1, z1), ground);
-            }
-        }
-
-        int l = 0;
-        list[l++] = new BVHNode(boxlist1, b, 0, 1, state);
-
-        *world = new HitableList(list, l);
-    }
-}
-
-*/
 __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* state)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
@@ -169,41 +139,7 @@ __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* 
         *world = new HitableList(list, listIndex);
     }
 }
-/*
 
-__global__ void bunny_inside_cornell_box(Hitable** world, Hitable** list, vec3* points, vec3* idxVertex, vec3* normal,
-    int np, int nt, curandState* state)
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        Material* mat = new Lambertian(new ConstantTexture(vec3(0.4, 0.7, 0.7)));
-
-        int l = 0;
-        for (int i = 0; i < nt; i++) {
-            vec3 idx = idxVertex[i];
-            vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            list[l++] = new FlipNormals(new Translate(new Triangle(v, normal[i], mat, true), vec3(278, 200, -450)));
-        }
-
-        Material* red = new   Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
-        Material* white = new   Lambertian(new ConstantTexture(vec3(0.73, 0.73, 0.73)));
-        Material* green = new   Lambertian(new ConstantTexture(vec3(0.12, 0.45, 0.15)));
-        Material* light = new DiffuseLight(new ConstantTexture(vec3(15, 15, 15)));
-
-        list[l++] = new FlipNormals(new RectangleYZ(0, 555, 0, 555, 555, green));
-        list[l++] = (new RectangleYZ(0, 555, 0, 555, 0, red));
-        list[l++] = (new RectangleXZ(213, 343, 227, 332, 554, light));
-        list[l++] = new FlipNormals(new RectangleXZ(0, 555, 0, 555, 555, white));
-        list[l++] = (new RectangleXZ(0, 555, 0, 555, 0, white));
-        list[l++] = new FlipNormals(new RectangleXY(0, 555, 0, 555, 555, white));
-
-
-        *world = new HitableList(list, l);
-        //BVHだと動かない
-        //*world = new BVHNode(list, l, 0, 1, state);
-    }
-}
-*/
 __global__ void create_camera_origin(Camera** camera, int nx, int ny) 
 {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
