@@ -155,8 +155,8 @@ __global__ void render(vec3* colorBuffer,
         float u = float(x + curand_uniform(&(state[pixel_index]))) / float(nx);
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
-        col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
-        //col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        //col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
+        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
         //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);
@@ -233,20 +233,26 @@ void BuildAnimatedSphere(HitableList** world, AnimationDataList* animationData, 
 
 void AddFBXMesh(const std::string& filePath, HitableList** world, AnimationDataList* animationData, TransformList** transformPointer)
 {
+    int nPoints, nTriangles;
+    if (!GetFBXVertexCount(filePath, nPoints, nTriangles))
+    {
+        std::cout << "fbx load failed" << std::endl;
+        return;
+    }
+
     vec3* points;
     vec3* idxVertex;
     vec3* normals;
 
-    checkCudaErrors(cudaMallocManaged((void**)&points, 5000 * sizeof(vec3)));
-    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
-    checkCudaErrors(cudaMallocManaged((void**)&normals, 5000 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&points, nPoints * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, nTriangles * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&normals, nTriangles * sizeof(vec3)));
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());;
 
-    int nPoints, nTriangles;
-    if (!FBXLoad(filePath, points, idxVertex, normals, nPoints, nTriangles))
+    if (!FBXLoad(filePath, points, idxVertex, normals))
     {
         std::cout << "fbx load failed" << std::endl;
         return;
@@ -263,7 +269,7 @@ void BuildSceneData(HitableList** world, Camera** camera,AnimationDataList* anim
 
     init_data << <1, 1 >> > (world, transformPointer);
     //BuildAnimatedSphere(world, animationData, transformPointer);
-    AddFBXMesh("./objects/bunny2.fbx",world, animationData, transformPointer);
+    AddFBXMesh("./objects/HipHopDancing.fbx",world, animationData, transformPointer);
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
@@ -272,22 +278,6 @@ void BuildSceneData(HitableList** world, Camera** camera,AnimationDataList* anim
 }
 
 
-int BuildRandomWorld(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
-{
-    int obj_cnt = 488;
-    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
-
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 0, 20), vec3(0, 0, 0), 10.0, 0.0, 60);
-    random_scene << <1, 1 >> > (world, obj_list, state);
-
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-     
-    printf("ÉVÅ[ÉìçÏê¨äÆóπ\n");
-
-    return obj_cnt;
-}
 
 /*
 int BuildMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)

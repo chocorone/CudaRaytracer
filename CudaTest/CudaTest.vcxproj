@@ -89,14 +89,16 @@
     <ClInclude Include="src\core\aabb.h" />
     <ClInclude Include="src\core\camera.h" />
     <ClInclude Include="src\core\ray.h" />
+    <ClInclude Include="src\core\render.h" />
     <ClInclude Include="src\core\vec3.h" />
+    <ClInclude Include="src\hitable\animationData.h" />
     <ClInclude Include="src\hitable\hitable.h" />
     <ClInclude Include="src\hitable\bvh.h" />
     <ClInclude Include="src\hitable\hitable_list.h" />
     <ClInclude Include="src\Loader\FbxLoader.h" />
     <ClInclude Include="src\material\material.h" />
     <ClInclude Include="src\material\texture.h" />
-    <ClInclude Include="src\mesh\obj_loader.h" />
+    <ClInclude Include="src\Loader\obj_loader.h" />
     <ClInclude Include="src\shapes\box.h" />
     <ClInclude Include="src\shapes\rectangle.h" />
     <ClInclude Include="src\shapes\sphere.h" />
@@ -126,6 +128,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stb-master\stb_vorbis.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="objects\CityPeopleLite\Meshes\casual_Female_G.fbx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

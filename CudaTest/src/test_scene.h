@@ -61,7 +61,7 @@ __global__ void add_mesh_withNormal(HitableList** world, vec3* points, vec3* idx
         for (int i = 0; i < nt; i++) {
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            Transform* transform = new Transform(vec3(0),vec3(0,180,0),vec3(1));
+            Transform* transform = new Transform(vec3(0),vec3(0,0,0),vec3(0.05));
             //(*transformPointer)->append(transform);//‚Æ‚è‚ ‚¦‚¸‚È‚µ‚Å
             (*world)->append(new Triangle(v, normal[i], mat, false,transform, true));
         }
