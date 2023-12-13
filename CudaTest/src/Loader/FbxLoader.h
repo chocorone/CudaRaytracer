@@ -10,6 +10,8 @@
 
 bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* normal,int &nPoints,int &nTriangles)
 {
+	printf("FBX読み込み開始\n");
+
 	// マネージャー初期化
 	auto manager = FbxManager::Create();
 
@@ -51,6 +53,7 @@ bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* no
 		vec3 vertex = vec3(point[0], point[1], point[2]);
 		points[i] = vertex;
 	}
+	printf("頂点取得完了\n");
 
 	nTriangles = mesh->GetPolygonCount();
 	// 頂点毎の情報を取得する
@@ -67,6 +70,7 @@ bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* no
 		mesh->GetPolygonVertexNormal(polIndex, 0, normalVec4);
 		normal[polIndex] = vec3(normalVec4[0], normalVec4[1], normalVec4[2]);
 	}
+	printf("ﾎﾟﾘｺﾞﾝ取得完了\n");
 
 	// マネージャー、シーンの破棄
 	scene->Destroy();

@@ -7,10 +7,10 @@ int main()
     const int ny = 512 * RESOLUTION;  
     const int tx = 16;
     const int ty = 16;
-    const int max_depth = 8;
-    const int samples = 4;
+    const int max_depth = 16;
+    const int samples = 8;
 
-    const int maxFrame = 2;
+    const int maxFrame = 0;
 
     //ヒープサイズ・スタックサイズ指定
     size_t heapSize = 1024 * 1024 * 1024;

@@ -237,9 +237,13 @@ void AddFBXMesh(const std::string& filePath, HitableList** world, AnimationDataL
     vec3* idxVertex;
     vec3* normals;
 
-    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&points, 5000 * sizeof(vec3)));
     checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
     checkCudaErrors(cudaMallocManaged((void**)&normals, 5000 * sizeof(vec3)));
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());;
 
     int nPoints, nTriangles;
     if (!FBXLoad(filePath, points, idxVertex, normals, nPoints, nTriangles))
@@ -247,8 +251,10 @@ void AddFBXMesh(const std::string& filePath, HitableList** world, AnimationDataL
         std::cout << "fbx load failed" << std::endl;
         return;
     }
-
+        
+    printf("メッシュ生成 頂点数%d\n", nPoints);
     add_mesh_withNormal << <1, 1 >> > (world, points, idxVertex, normals, nPoints, nTriangles, transformPointer);
+    printf("メッシュ生成完了\n");
 }
 
 void BuildSceneData(HitableList** world, Camera** camera,AnimationDataList* animationData, TransformList** transformPointer, int nx, int ny)
@@ -256,8 +262,8 @@ void BuildSceneData(HitableList** world, Camera** camera,AnimationDataList* anim
     create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 0, 20),vec3(0, 0, 0), 10.0,0.0,60);
 
     init_data << <1, 1 >> > (world, transformPointer);
-    BuildAnimatedSphere(world, animationData, transformPointer);
-    //AddFBXMesh("./objects/bunny2.fbx",world, animationData, transformPointer);
+    //BuildAnimatedSphere(world, animationData, transformPointer);
+    AddFBXMesh("./objects/bunny2.fbx",world, animationData, transformPointer);
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
