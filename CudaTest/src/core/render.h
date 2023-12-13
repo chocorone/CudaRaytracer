@@ -177,6 +177,13 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int minFrame,int ma
     // レンダリング
     for (int frameIndex = 0; frameIndex <= maxFrame; frameIndex++)
     {
+        // 位置更新処理
+        for (int i = 0; i < animationData->list_size; i++)
+        {
+            SetTransform << <1, 1 >> > (animationData->list[i]->Get_NextTransform(frameIndex), transformPointer, i);
+            animationData->list[i]->SetNext(frameIndex);
+        }
+
         render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
@@ -202,16 +209,7 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int minFrame,int ma
         stbi_write_png(pathname, nx, ny, sizeof(RGB), rgb, 0);
 
         printf("%dフレーム目:画像書き出し\n", frameIndex);
-        delete[] pathname;
-
-        // 位置更新処理
-        for (int i = 0; i < sizeof(transformPointer) / sizeof(Transform*); i++)
-        {
-            SetTransform << <1, 1 >> > (animationData->list[i]->Get_NextTransform(frameIndex+1), transformPointer, i);
-            animationData->list[i]->SetNext(frameIndex+1);
-        }
-        
-       
+        delete[] pathname; 
     }
 }
 
@@ -230,11 +228,16 @@ void BuildAppendTest(HitableList** world, Camera** camera, curandState* state,
     //アニメーション準備
     KeyFrameList* keyFrames = new KeyFrameList();
     keyFrames->append(new KeyFrame(0, new Transform(vec3(0, 1, 0), vec3(0), vec3(1))));
-    keyFrames->append(new KeyFrame(3, new Transform(vec3(0, 2, 0), vec3(0), vec3(1.5))));
+    keyFrames->append(new KeyFrame(3, new Transform(vec3(0, 5, 0), vec3(0), vec3(1.5))));
+    KeyFrameList* keyFrames2 = new KeyFrameList();
+    keyFrames2->append(new KeyFrame(0, new Transform(vec3(-4, 1, 0), vec3(0), vec3(1))));
+    keyFrames2->append(new KeyFrame(3, new Transform(vec3(-4, -5, 0), vec3(0), vec3(10))));
+    KeyFrameList* keyFrames3 = new KeyFrameList();
+    keyFrames3->append(new KeyFrame(0, new Transform(vec3(4, 1, 0), vec3(0), vec3(1))));
 
     animationData->append(new AnimationData(keyFrames));
-    animationData->append(new AnimationData());
-    animationData->append(new AnimationData());
+    animationData->append(new AnimationData(keyFrames2));
+    animationData->append(new AnimationData(keyFrames3));
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
