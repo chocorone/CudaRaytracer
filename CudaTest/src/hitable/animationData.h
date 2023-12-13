@@ -69,7 +69,7 @@ public:
         int cnt = sizeof(keyframs) / sizeof(KeyFrame);
         if (keyframs->list_size <= currentFrameIndex + 1)
         {
-            printf("return:%d\n",cnt);
+            //printf("return:%d\n",cnt);
             return *keyframs->list[currentFrameIndex]->transform;
         }
 
@@ -77,7 +77,7 @@ public:
         Transform* begin = keyframs->list[currentFrameIndex]->transform;
         Transform* end = keyframs->list[currentFrameIndex+1]->transform;
         float t = ((float)(nextFrame - keyframs->list[currentFrameIndex]->frame)) / (keyframs->list[currentFrameIndex+1]->frame - keyframs->list[currentFrameIndex]->frame);
-        printf("t:%f\n", t);
+        //printf("t:%f\n", t);
         
         //vec3 position = SLerp(begin.position, end.position, t);
         vec3 position = lerp(t, begin->position, end->position);
@@ -85,7 +85,7 @@ public:
         vec3 rotation = lerp(t, begin->rotation, end->rotation);
         //vec3 scale = SLerp(begin.scale, end.scale, t);
         vec3 scale = lerp(t, begin->scale, end->scale);
-        printf("%f\n", scale.y());
+        //printf("%f\n", scale.y());
         return  Transform(position, rotation, scale);
     }
 

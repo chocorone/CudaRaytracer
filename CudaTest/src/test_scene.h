@@ -27,7 +27,7 @@ __global__ void init_data(HitableList** world, TransformList** transformPointer)
 }
 
 // オブジェクトの生成
-__global__ void append_test(HitableList** world,  TransformList** transformPointer)
+__global__ void add_object(HitableList** world,  TransformList** transformPointer)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
@@ -46,13 +46,31 @@ __global__ void append_test(HitableList** world,  TransformList** transformPoint
         (*transformPointer)->append(transform1);
         (*transformPointer)->append(transform2);
         (*transformPointer)->append(transform3);
-
     }
 }
 
 
+__global__ void add_mesh_withNormal(HitableList** world, vec3* points, vec3* idxVertex, vec3* normal,
+    int np, int nt, TransformList** transformPointer)
+{
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+        //Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
 
-//デバイス側の処理
+        int l = 0;
+        for (int i = 0; i < nt; i++) {
+            vec3 idx = idxVertex[i];
+            vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
+            Transform* transform = new Transform;
+            //(*transformPointer)->append(transform);//とりあえずなしで
+            (*world)->append(new Triangle(v, normal[i], mat, false,transform, true));
+        }
+    }
+}
+
+
+//ここから下はもとのもの
 __global__ void random_scene(Hitable** world, Hitable** list,curandState* state)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
@@ -110,23 +128,6 @@ __global__ void draw_one_mesh(Hitable** world,Hitable** list,vec3* points,vec3* 
 */
 
 
-__global__ void draw_one_mesh_withNormal(Hitable** world, Hitable** list, vec3* points, vec3* idxVertex,vec3* normal,
-    int np, int nt, curandState* state)
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
-        //Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
-        
-        int l = 0;
-        for (int i = 0; i < nt; i++) {
-            vec3 idx = idxVertex[i];
-            vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            list[l++] = new Triangle(v,  normal[i], mat,false,new Transform(), true);
-        }
-        *world = new HitableList(list, l,new Transform(vec3(0,-10,0),vec3(-20,180,0),vec3(1.5)));
-    }
-}
 
 __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* state)
 {
@@ -156,37 +157,10 @@ __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* 
     }
 }
 
-__global__ void create_camera_origin(Camera** camera, int nx, int ny) 
+__global__ void create_camera(Camera** camera, int nx, int ny,
+    vec3 lookfrom, vec3 lookat, float dist_to_focus, float aperture, float vfov)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
-        vec3 lookfrom(0, 0, 20);
-        vec3 lookat(0, 0, 0);
-        float dist_to_focus = 10.0;
-        float aperture = 0.0;
-        float vfov = 60.0;
-
-
-        *camera = new Camera(lookfrom,
-            lookat,
-            vec3(0, 1, 0),
-            vfov,
-            float(nx) / float(ny),
-            aperture,
-            dist_to_focus);
-    }
-}
-
-__global__ void create_camera_for_cornelbox(Camera** camera, int nx, int ny) 
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0) 
-    {
-        vec3 lookfrom(278, 278, -700);
-        vec3 lookat(278, 278, 0);
-        float dist_to_focus = 10.0;
-        float aperture = 0.0;
-        float vfov = 40.0;
-
-
         *camera = new Camera(lookfrom,
             lookat,
             vec3(0, 1, 0),

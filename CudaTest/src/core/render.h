@@ -213,17 +213,8 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int minFrame,int ma
     }
 }
 
-
-
-
-//ここから下はビルドサンプル
-void BuildAppendTest(HitableList** world, Camera** camera, curandState* state, 
-    AnimationDataList* animationData, TransformList** transformPointer, int nx, int ny)
-{
-    create_camera_origin << <1, 1 >> > (camera, nx, ny);
-    printf("begin prepare data\n");
-    init_data << <1, 1 >> > (world, transformPointer);
-    append_test << <1, 1 >> > (world,transformPointer);
+void BuildAnimatedSphere(HitableList** world, AnimationDataList* animationData, TransformList** transformPointer) {
+    add_object << <1, 1 >> > (world, transformPointer);
 
     //アニメーション準備
     KeyFrameList* keyFrames = new KeyFrameList();
@@ -238,20 +229,49 @@ void BuildAppendTest(HitableList** world, Camera** camera, curandState* state,
     animationData->append(new AnimationData(keyFrames));
     animationData->append(new AnimationData(keyFrames2));
     animationData->append(new AnimationData(keyFrames3));
+}
+
+void AddFBXMesh(const std::string& filePath, HitableList** world, AnimationDataList* animationData, TransformList** transformPointer)
+{
+    vec3* points;
+    vec3* idxVertex;
+    vec3* normals;
+
+    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&normals, 5000 * sizeof(vec3)));
+
+    int nPoints, nTriangles;
+    if (!FBXLoad(filePath, points, idxVertex, normals, nPoints, nTriangles))
+    {
+        std::cout << "fbx load failed" << std::endl;
+        return;
+    }
+
+    add_mesh_withNormal << <1, 1 >> > (world, points, idxVertex, normals, nPoints, nTriangles, transformPointer);
+}
+
+void BuildSceneData(HitableList** world, Camera** camera,AnimationDataList* animationData, TransformList** transformPointer, int nx, int ny)
+{
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 0, 20),vec3(0, 0, 0), 10.0,0.0,60);
+
+    init_data << <1, 1 >> > (world, transformPointer);
+    BuildAnimatedSphere(world, animationData, transformPointer);
+    //AddFBXMesh("./objects/bunny2.fbx",world, animationData, transformPointer);
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    printf("end prepare data\n");
     printf("シーン作成完了\n");
 }
+
 
 int BuildRandomWorld(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
 {
     int obj_cnt = 488;
     checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
 
-    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 0, 20), vec3(0, 0, 0), 10.0, 0.0, 60);
     random_scene << <1, 1 >> > (world, obj_list, state);
 
     CHECK(cudaDeviceSynchronize());
@@ -263,42 +283,6 @@ int BuildRandomWorld(Hitable** world, Hitable** obj_list, Camera** camera, curan
     return obj_cnt;
 }
 
-int BuildFBXMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
-{
-    vec3* points;
-    vec3* idxVertex;
-    vec3* normals;
-
-    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
-    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
-    checkCudaErrors(cudaMallocManaged((void**)&normals, 5000 * sizeof(vec3)));
-
-    int nPoints, nTriangles;
-    if (!FBXLoad("./objects/bunny2.fbx", points, idxVertex, normals, nPoints, nTriangles))
-    {
-        std::cout << "fbx load failed" << std::endl;
-        return 0;
-    }
-
-    int obj_cnt = nTriangles + 10;
-    printf("obj_cnt %d\n", obj_cnt);
-    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
-
-    create_camera_origin << <1, 1 >> > (camera, nx, ny);
-    draw_one_mesh_withNormal << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
-
-    //create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
-    //bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points, idxVertex, normals, nPoints, nTriangles, state);
-    //cornell_box_scene << <1, 1 >> > (world, obj_list, state);
-
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-
-    printf("シーン作成完了\n");
-
-    return obj_cnt;
-}
 /*
 int BuildMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
 {
@@ -341,7 +325,7 @@ int BuildCornellBox(Hitable** world, Hitable** obj_list, Camera** camera, curand
     int obj_cnt = 2;
     checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
     //    create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
-    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
     cornell_box_scene << <1, 1 >> > (world, obj_list, state);
 
     CHECK(cudaDeviceSynchronize());

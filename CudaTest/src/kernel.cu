@@ -52,7 +52,7 @@ int main()
     // オブジェクト、カメラの生成
     //int obj_count = BuildRandomWorld(world,obj_list,camera, curand_state,nx, ny);
     AnimationDataList* animationData = new AnimationDataList();
-    BuildAppendTest(world, camera, curand_state, animationData, transformPointer, nx, ny);
+    BuildSceneData(world, camera, animationData, transformPointer, nx, ny);
 
     renderAnimation(nx, ny, samples, max_depth, 0, maxFrame,
         colorBuffer,world, camera,animationData,transformPointer,blocks,threads,curand_state);

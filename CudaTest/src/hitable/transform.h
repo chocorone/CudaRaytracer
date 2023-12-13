@@ -70,9 +70,6 @@ public:
      __device__  void freeMemory()
     {
         free(list);
-        /*for (int i = 0; i < list_size; i++) {
-            delete* (list + i);
-        }*/
         list_size = 0;
     }
 
