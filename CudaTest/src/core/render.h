@@ -44,13 +44,14 @@ void check_cuda(cudaError_t result,
 }
 
 __global__ void destroy(HitableList** world,
-    Camera** camera) {
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        (*world)->freeMemory();
-        delete* world;
-        delete* camera;
-    }
+    Camera** camera, TransformList** transformPointer) {
+
+    (*world)->freeMemory();
+    (*transformPointer)->freeMemory();
+    delete* world;
+    delete* camera;
+    delete* transformPointer;
+    
 }
 
 __global__ void random_init(int nx,
@@ -166,8 +167,13 @@ __global__ void render(vec3* colorBuffer,
     colorBuffer[pixel_index] = clip(col);
 }
 
+__global__ void SetTransform(Transform transform, TransformList** transformPointer,int i) {
+    *((*transformPointer)->list[i]) = transform;
+}
+
 void renderAnimation(int nx,int ny,int samples,int max_depth,int minFrame,int maxFrame,
-    vec3* colorBuffer, HitableList** world,  Camera** camera, dim3 blocks, dim3 threads, curandState* curand_state) {
+    vec3* colorBuffer, HitableList** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
+    dim3 blocks, dim3 threads, curandState* curand_state) {
     // レンダリング
     for (int frameIndex = 0; frameIndex <= maxFrame; frameIndex++)
     {
@@ -197,20 +203,43 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int minFrame,int ma
 
         printf("%dフレーム目:画像書き出し\n", frameIndex);
         delete[] pathname;
+
+        // 位置更新処理
+        for (int i = 0; i < sizeof(transformPointer) / sizeof(Transform*); i++)
+        {
+            SetTransform << <1, 1 >> > (animationData->list[i]->Get_NextTransform(frameIndex+1), transformPointer, i);
+            animationData->list[i]->SetNext(frameIndex+1);
+        }
+        
+       
     }
 }
 
 
+
+
 //ここから下はビルドサンプル
-void BuildAppendTest(HitableList** world, Camera** camera, curandState* state, int nx, int ny)
+void BuildAppendTest(HitableList** world, Camera** camera, curandState* state, 
+    AnimationDataList* animationData, TransformList** transformPointer, int nx, int ny)
 {
     create_camera_origin << <1, 1 >> > (camera, nx, ny);
-    append_test << <1, 1 >> > (world);
+    printf("begin prepare data\n");
+    init_data << <1, 1 >> > (world, transformPointer);
+    append_test << <1, 1 >> > (world,transformPointer);
+
+    //アニメーション準備
+    KeyFrameList* keyFrames = new KeyFrameList();
+    keyFrames->append(new KeyFrame(0, new Transform(vec3(0, 1, 0), vec3(0), vec3(1))));
+    keyFrames->append(new KeyFrame(3, new Transform(vec3(0, 2, 0), vec3(0), vec3(1.5))));
+
+    animationData->append(new AnimationData(keyFrames));
+    animationData->append(new AnimationData());
+    animationData->append(new AnimationData());
 
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-
+    printf("end prepare data\n");
     printf("シーン作成完了\n");
 }
 
@@ -225,7 +254,7 @@ int BuildRandomWorld(Hitable** world, Hitable** obj_list, Camera** camera, curan
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-
+     
     printf("シーン作成完了\n");
 
     return obj_cnt;

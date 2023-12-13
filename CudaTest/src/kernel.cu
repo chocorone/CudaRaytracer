@@ -25,7 +25,6 @@ int main()
 
     const int num_pixel = nx * ny;
 
-
     // 画素のメモリ確保
     vec3* colorBuffer;
     checkCudaErrors(cudaMallocManaged((void**)&colorBuffer, num_pixel * sizeof(vec3)));
@@ -37,8 +36,11 @@ int main()
     //シーン保存用の変数のメモリ確保
     HitableList** world;
     Camera** camera;
+    TransformList** transformPointer;
+
     checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
+    checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
     
     // 画素ごとに乱数を初期化
     dim3 blocks(nx / tx + 1, ny / ty + 1);
@@ -48,29 +50,27 @@ int main()
     checkCudaErrors(cudaDeviceSynchronize());
 
     // オブジェクト、カメラの生成
-    // ランダムな球
     //int obj_count = BuildRandomWorld(world,obj_list,camera, curand_state,nx, ny);
-    BuildAppendTest(world, camera, curand_state, nx, ny);
+    AnimationDataList* animationData = new AnimationDataList();
+    BuildAppendTest(world, camera, curand_state, animationData, transformPointer, nx, ny);
 
+    renderAnimation(nx, ny, samples, max_depth, 0, maxFrame,
+        colorBuffer,world, camera,animationData,transformPointer,blocks,threads,curand_state);
     
-    renderAnimation(nx, ny,samples,max_depth, 0, maxFrame, 
-        colorBuffer,world, camera,blocks,threads,curand_state);
-
-
+    animationData->freeMemory();
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
-    destroy << <1, 1 >> > ( world, camera);
+    destroy << <1, 1 >> > ( world, camera,transformPointer);
 
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(world));
     checkCudaErrors(cudaFree(camera));
+    checkCudaErrors(cudaFree(transformPointer));
     checkCudaErrors(cudaFree(curand_state));
     checkCudaErrors(cudaFree(colorBuffer));
     
-
     cudaDeviceReset();
 
-    printf("実行完了\n");
 
     return 0;
 }

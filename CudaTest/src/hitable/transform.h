@@ -5,12 +5,12 @@
 
 class Transform {
 public:
-    __device__ Transform() { position = vec3(); rotation = vec3(); scale = vec3(1); }
-    __device__ Transform(vec3 p, vec3 r, vec3 s) : position(p), rotation(r), scale(s)
+    __host__ __device__ Transform() { position = vec3(); rotation = vec3(); scale = vec3(1); }
+    __host__ __device__ Transform(vec3 p, vec3 r, vec3 s) : position(p), rotation(r), scale(s)
     {
         //printf("set transform\n");
     }
-    __device__ Ray TransformRay(const Ray& r)
+     __device__ Ray TransformRay(const Ray& r)
     {
         return  TranslateRay(RotateRay(ScaleRay(r)));
     }
@@ -40,32 +40,42 @@ private:
 
 };
 
-struct KeyFrame {
+class TransformList {
 public:
-    int frame;
-    Transform transform;
-};
+     __device__ TransformList() { list = new Transform * (); list_size = 0; }
+     __device__ TransformList(Transform** l, int n) { list = l; list_size = n; }
+     __device__ void append(Transform* data)
+    {
+        Transform** tmp = (Transform**)malloc(sizeof(Transform*) * list_size);
 
-struct AnimationData {
-public:
-    KeyFrame* keyframs;
-    int currentFrameIndex;
-    __device__ Transform Get_NextTransform(int nextFrame) {
-        if (sizeof(keyframs) / sizeof(KeyFrame) <= currentFrameIndex + 1)return keyframs[currentFrameIndex].transform;
+        for (int i = 0; i < list_size; i++)
+        {
+            tmp[i] = list[i];
+        }
 
-        //•âŠ®‚µ‚½Transform‚ð•Ô‚·
-        Transform begin = keyframs[currentFrameIndex].transform;
-        Transform end = keyframs[currentFrameIndex + 1].transform;
-        float t = (nextFrame-keyframs[currentFrameIndex].frame) / (keyframs[currentFrameIndex + 1].frame - keyframs[currentFrameIndex].frame);
-        vec3 position = SLerp(begin.position, end.position, t);
-        vec3 rotation = SLerp(begin.rotation, end.rotation, t);
-        vec3 scale = SLerp(begin.scale, end.scale, t);
+        free(list);
 
-        return Transform(position, rotation, scale);
+        list_size++;
+
+        list = (Transform**)malloc(sizeof(Transform*) * list_size);
+
+        for (int i = 0; i < list_size - 1; i++)
+        {
+            list[i] = tmp[i];
+        }
+        list[list_size - 1] = data;
+
+        free(tmp);
+    }
+     __device__  void freeMemory()
+    {
+        free(list);
+        /*for (int i = 0; i < list_size; i++) {
+            delete* (list + i);
+        }*/
+        list_size = 0;
     }
 
-    __device__ void SetNext(int nextFrame) {
-        if (sizeof(keyframs) / sizeof(KeyFrame) <= currentFrameIndex+1) return;
-        if (keyframs[currentFrameIndex + 1].frame >= nextFrame)currentFrameIndex++;
-    }
+    Transform** list;
+    int list_size;
 };

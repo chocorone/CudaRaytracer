@@ -14,23 +14,39 @@
 #include "shapes/triangle.h"
 #include "shapes/box.h"
 #include "material/material.h"
+#include "hitable/animationData.h"
 
 __device__ float rand(curandState* state) {
     return float(curand_uniform(state));
 }
 
+__global__ void init_data(HitableList** world, TransformList** transformPointer) 
+{
+    *world = new HitableList();
+    *transformPointer = new TransformList();
+}
+
 // オブジェクトの生成
-__global__ void append_test(HitableList** world)
+__global__ void append_test(HitableList** world,  TransformList** transformPointer)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        *world = new HitableList();
 
         Texture* checker = new CheckerTexture(new ConstantTexture(vec3(0.2, 0.3, 0.1)),
             new ConstantTexture(vec3(0.9, 0.9, 0.9)));
-        (*world)->append(new Sphere(new Transform(vec3(0, 1, 0), vec3(0), vec3(1)), 1.0, new Dielectric(1.5)));
-        (*world)->append(new Sphere(new Transform(vec3(-4, 1, 0), vec3(0), vec3(1)), 1.0, new Lambertian(checker)));
-        (*world)->append(new Sphere(new Transform(vec3(4, 1, 0), vec3(0), vec3(1)), 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0)));
+
+        Transform* transform1 = new Transform(vec3(0, 1, 0), vec3(0), vec3(1));
+        Transform* transform2 = new Transform(vec3(-4, 1, 0), vec3(0), vec3(1));
+        Transform* transform3 = new Transform(vec3(4, 1, 0), vec3(0), vec3(1));
+
+        (*world)->append(new Sphere(transform1, 1.0, new Lambertian(checker)));
+        (*world)->append(new Sphere(transform2, 1.0, new Dielectric(1.5)));
+        (*world)->append(new Sphere(transform3, 1.0, new Metal(vec3(0.7, 0.6, 0.5), 0.0)));
+
+        (*transformPointer)->append(transform1);
+        (*transformPointer)->append(transform2);
+        (*transformPointer)->append(transform3);
+
     }
 }
 

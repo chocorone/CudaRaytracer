@@ -39,6 +39,7 @@ public:
     __device__  void freeMemory()
     {
         free(list);
+
         list_size = 0;
     }
 
