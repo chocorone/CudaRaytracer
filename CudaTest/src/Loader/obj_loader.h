@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include "../core/vec3.h"
+#include "../shapes/MeshObject.h"
 
 
 vec3 computeMean(vec3* points, int np);
@@ -143,3 +144,38 @@ void scaling(vec3* points, vec3& mean, int np) {
     for (int i = 0; i < np; i++)
         (*points)[i] /= max_dis;
 }
+
+/*
+int BuildObjMesh(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny)
+{
+    vec3* points;
+    vec3* idxVertex;
+
+    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
+    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
+
+    int nPoints, nTriangles;
+    parseObjByName("./objects/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
+
+    std::cout << "# of points: " << nPoints << std::endl;
+    std::cout << "# of triangles: " << nTriangles << std::endl;
+
+    // scale
+    for (int i = 0; i < nPoints; i++) { points[i] *= 100.0; }
+    //for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
+
+    int obj_cnt = nTriangles + 10;
+    printf("obj_cnt %d\n", obj_cnt);
+    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
+
+    create_camera_origin << <1, 1 >> > (camera, nx, ny);
+    draw_one_mesh_withoutBVH << <1, 1 >> > (world, obj_list, points, idxVertex, nPoints, nTriangles, state);
+
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    printf("ÉVÅ[ÉìçÏê¨äÆóπ\n");
+
+    return obj_cnt;
+}*/

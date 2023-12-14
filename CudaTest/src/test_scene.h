@@ -15,6 +15,7 @@
 #include "shapes/box.h"
 #include "material/material.h"
 #include "hitable/animationData.h"
+#include "shapes/MeshObject.h"
 
 __device__ float rand(curandState* state) {
     return float(curand_uniform(state));
@@ -25,6 +26,11 @@ __global__ void init_data(HitableList** world, TransformList** transformPointer)
     *world = new HitableList();
     *transformPointer = new TransformList();
 }
+/*
+//BVHの作成
+__global__ void create_BVH(HitableList** world, BVHNode** bvh,curandState* state) {
+    *bvh = new BVHNode(world, world->listCount, 0, 1, state);
+}*/
 
 // オブジェクトの生成
 __global__ void add_object(HitableList** world,  TransformList** transformPointer)
@@ -64,6 +70,24 @@ __global__ void add_mesh_withNormal(HitableList** world, vec3* points, vec3* idx
             Transform* transform = new Transform(vec3(0),vec3(0,0,0),vec3(0.05));
             //(*transformPointer)->append(transform);//とりあえずなしで
             (*world)->append(new Triangle(v, normal[i], mat, false,transform, true));
+        }
+    }
+}
+
+
+__global__ void add_mesh_withNormal(HitableList** world, MeshData* data, TransformList** transformPointer)
+{
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+
+        int l = 0;
+        for (int i = 0; i < data->nTriangles; i++) {
+            vec3 idx = data->idxVertex[i];
+            vec3 v[3] = { data->points[int(idx[2])], data->points[int(idx[1])], data->points[int(idx[0])] };
+            Transform* transform = new Transform(vec3(0), vec3(0, 0, 0), vec3(0.05));
+            //(*transformPointer)->append(transform);//とりあえずなしで
+            (*world)->append(new Triangle(v, data->normals[i], mat, false, transform, true));
         }
     }
 }
