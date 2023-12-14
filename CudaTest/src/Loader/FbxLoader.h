@@ -8,6 +8,20 @@
 #pragma comment(lib, "zlib-md.lib")
 #pragma comment(lib, "zlib-md.lib")
 
+void printAllNode(fbxsdk::FbxNode* object,int index) 
+{
+
+	printf("%*s%s\n", index,"", object->GetNameOnly());
+	
+	for (int i = 0; i < object->GetChildCount(); i++)
+	{
+		printAllNode(object->GetChild(i), index+1);
+	}
+		
+	
+}
+
+
 bool GetFBXVertexCount(const std::string& filePath, int& nPoints, int& nTriangles)
 {
 	// マネージャー初期化
@@ -70,7 +84,6 @@ bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* no
 	// シーン作成
 	auto scene = FbxScene::Create(manager, "");
 	importer->Import(scene);
-	importer->Destroy();
 
 	// 三角ポリゴンへのコンバート
 	FbxGeometryConverter geometryConverter(manager);
@@ -89,7 +102,7 @@ bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* no
 
 	int nPoints = mesh->GetControlPointsCount();
 	// 頂点座標情報のリストを生成
-	for (int i = 0; i < nPoints; i++)
+	/*for (int i = 0; i < nPoints; i++)
 	{
 		// 頂点座標を読み込んで設定
 		auto point = mesh->GetControlPointAt(i);
@@ -115,9 +128,20 @@ bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* no
 		normal[polIndex] = vec3(normalVec4[0], normalVec4[1], normalVec4[2]);
 	}
 	printf("ﾎﾟﾘｺﾞﾝ取得完了\n");
+	*/
 
 	//デフォーマー取得
 	int DeformerCount = mesh->GetDeformerCount();
+	
+	//ボーン取得
+	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
+
+	printAllNode(pSkin->GetCluster(0)->GetLink(),0);
+
+	
+	
+
+
 	printf("でふぉーまー数：%d\n", DeformerCount);
 	for (int i = 0; i < DeformerCount; ++i) 
 	{
@@ -130,23 +154,41 @@ bool FBXLoad(const std::string& filePath, vec3* points, vec3* idxVertex,vec3* no
 			for (int i = 0; i < ClusterCount; ++i) 
 			{
 				fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
+				
 				if (pCluster->GetLinkMode() != fbxsdk::FbxCluster::eTotalOne) 
 				{
 					int ControlPointIndicesCount = pCluster->GetControlPointIndicesCount();
-					printf("ボーン名：%s　影響頂点数：%d\n", pCluster->GetName(), ControlPointIndicesCount);
-					//ボーンの各頂点への影響取得
+					printf("ボーン名：%s　影響頂点数：%d\n", pCluster->GetNameOnly(), ControlPointIndicesCount);
+					/*//ボーンの各頂点への影響取得
 					for (int j = 0; j < ControlPointIndicesCount; ++j) 
 					{
 						printf("%f\n", (pCluster->GetControlPointWeights())[j]);
-					}
+					}*/
 				}
 
 			}
 		}
 	}
+
+	/*//アニメーション情報取得
+	int animStackCount = importer->GetAnimStackCount();
+	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
+	FbxLongLong start = pFbxTakeInfo->mLocalTimeSpan.GetStart().Get();
+	FbxLongLong stop = pFbxTakeInfo->mLocalTimeSpan.GetStop().Get();
+
+	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames60);
+
+	int framecount = (stop - start) / oneFrameValue;
+	printf("アニメーションの合計フレーム数%d\n", framecount);
+	*/
+	
+
+	//ポーズ情報取得
+	
 	printf("ボーン取得完了\n");
 
 	// マネージャー、シーンの破棄
+	importer->Destroy();
 	scene->Destroy();
 	manager->Destroy();
 	return true;
