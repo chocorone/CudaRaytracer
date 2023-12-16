@@ -23,54 +23,10 @@
 #include "../test_scene.h"
 
 #include "../Loader/FbxLoader.h"
-
+#include "core/deviceManage.h"
 
 #define RESOLUTION 1
 
-#define checkCudaErrors(val) check_cuda((val), #val, __FILE__, __LINE__)
-
-#define CHECK(call) {const cudaError_t error = call;  if (error != cudaSuccess)  { printf("Error: %s:%d, ", __FILE__, __LINE__); printf("code:%d, reason: %s\n", error, cudaGetErrorString(error)); exit(1); } }
-
-void check_cuda(cudaError_t result,
-    char const* const func,
-    const char* const file,
-    int const line) {
-    if (result) {
-        std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
-            file << ":" << line << " '" << func << "' \n";
-        cudaDeviceReset();
-        exit(99);
-    }
-}
-
-__global__ void destroy(HitableList** world,
-    Camera** camera, TransformList** transformPointer) {
-
-    (*world)->freeMemory();
-    (*transformPointer)->freeMemory();
-    delete* world;
-    delete* camera;
-    delete* transformPointer;
-    
-}
-
-__global__ void destroy(MeshData* meshData) {
-
-    delete meshData->points;
-    delete meshData->normals;
-    delete meshData->idxVertex;
-
-}
-
-__global__ void random_init(int nx,
-    int ny,
-    curandState* state) {
-    int x = threadIdx.x + blockIdx.x * blockDim.x;
-    int y = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((x >= nx) || (y >= ny)) return;
-    int pixel_index = y * nx + x;
-    curand_init(0, pixel_index, 0, &state[pixel_index]);
-}
 
 struct RGB {
     unsigned char r, g, b, a; //ê‘, óŒ, ê¬, ìßâﬂ

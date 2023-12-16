@@ -1,5 +1,5 @@
 ﻿#include "core/render.h"
-#include "core/deviceManage.h"
+
 
 int main()
 {
