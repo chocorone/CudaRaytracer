@@ -17,10 +17,7 @@ int main()
     ChangeHeapSize(1024 * 1024 * 1024);
     ChangeStackSize(4096 * 2);
 
-    // 画素のメモリ確保
     const int num_pixel = nx * ny;
-    vec3* colorBuffer;
-    checkCudaErrors(cudaMallocManaged((void**)&colorBuffer, num_pixel * sizeof(vec3)));
 
     // 乱数列生成用のメモリ確保
     curandState* curand_state;
@@ -61,8 +58,7 @@ int main()
     printf("シーン作成完了\n");
 
     //レンダリング
-    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame,
-        colorBuffer,world, camera,animationData,transformPointer,blocks,threads,curand_state);
+    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, world, camera,animationData,transformPointer,blocks,threads,curand_state);
     
     //メモリ解放
     animationData->freeMemory();
@@ -75,7 +71,7 @@ int main()
     checkCudaErrors(cudaFree(transformPointer));
     checkCudaErrors(cudaFree(curand_state));
     checkCudaErrors(cudaFree(meshData));
-    checkCudaErrors(cudaFree(colorBuffer));
+    
     
     cudaDeviceReset();
 

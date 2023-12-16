@@ -136,8 +136,14 @@ __global__ void SetTransform(Transform transform, TransformList** transformPoint
 }
 
 void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    vec3* colorBuffer, HitableList** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
+    HitableList** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
     dim3 blocks, dim3 threads, curandState* curand_state) {
+
+    // 画素のメモリ確保
+    const int num_pixel = nx * ny;
+    vec3* colorBuffer;
+    checkCudaErrors(cudaMallocManaged((void**)&colorBuffer, num_pixel * sizeof(vec3)));
+
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
@@ -175,6 +181,7 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         printf("%dフレーム目:画像書き出し\n", frameIndex);
         delete[] pathname; 
     }
+    checkCudaErrors(cudaFree(colorBuffer));
 }
 
 void BuildAnimatedSphere(HitableList** world, AnimationDataList* animationData, TransformList** transformPointer) {
