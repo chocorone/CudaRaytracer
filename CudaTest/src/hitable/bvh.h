@@ -44,7 +44,7 @@ struct BoxCompare {
     int mode;
 };
 
-/*
+
 class BVHNode : public Hitable {
 public:
     __device__ BVHNode() {}
@@ -54,10 +54,10 @@ public:
         float time1,
         curandState* state);
 
-    __device__ virtual bool hit(const Ray& r,
+    __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) const;
+        HitRecord& rec, int frameIndex)const;
 
     __device__ virtual bool bounding_box(float t0,
         float t1,
@@ -116,14 +116,14 @@ __device__ bool BVHNode::bounding_box(float t0,
 }
 
 
-__device__ bool BVHNode::hit(const Ray& r,
+__device__ bool BVHNode::collision_detection(const Ray& r,
     float t_min,
     float t_max,
-    HitRecord& rec) const {
+    HitRecord& rec, int frameIndex) const {
     if (box.hit(r, t_min, t_max)) {
         HitRecord left_rec, right_rec;
-        bool hit_left = left->hit(r, t_min, t_max, left_rec);
-        bool hit_right = right->hit(r, t_min, t_max, right_rec);
+        bool hit_left = left->hit(r, t_min, t_max, left_rec,frameIndex);
+        bool hit_right = right->hit(r, t_min, t_max, right_rec, frameIndex);
         if (hit_left && hit_right) {
             if (left_rec.t < right_rec.t) {
                 rec = left_rec;
@@ -147,4 +147,3 @@ __device__ bool BVHNode::hit(const Ray& r,
     }
     return false;
 }
-*/

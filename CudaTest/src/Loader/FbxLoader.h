@@ -96,7 +96,7 @@ bool CreateFBXMeshData(const std::string& filePath, MeshData* data)
 	printf("ﾎﾟﾘｺﾞﾝ取得完了\n");	
 
 	//ボーン取得
-	int DeformerCount = mesh->GetDeformerCount();
+	/*int DeformerCount = mesh->GetDeformerCount();
 
 	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
 	//親子関係取得

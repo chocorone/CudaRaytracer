@@ -26,10 +26,10 @@ __global__ void init_data(HitableList** world, TransformList** transformPointer)
     *world = new HitableList();
     *transformPointer = new TransformList();
 }
-/*
+
 //BVHの作成
-__global__ void create_BVH(HitableList** world, BVHNode** bvh,curandState* state) {
-    *bvh = new BVHNode(world, world->listCount, 0, 1, state);
+/*__global__ void create_BVH(HitableList** list, Hitable** bvh, curandState* state) {
+    *bvh = new BVHNode(list, (*list)->list_size, 0.0f, 1.0f, state);
 }*/
 
 // オブジェクトの生成
@@ -67,7 +67,7 @@ __global__ void add_mesh_withNormal(HitableList** world, vec3* points, vec3* idx
         for (int i = 0; i < nt; i++) {
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            Transform* transform = new Transform(vec3(0),vec3(0,0,0),vec3(0.05));
+            Transform* transform = new Transform(vec3(0),vec3(0,0,0),vec3(1));
             //(*transformPointer)->append(transform);//とりあえずなしで
             (*world)->append(new Triangle(v, normal[i], mat, false,transform, true));
         }
