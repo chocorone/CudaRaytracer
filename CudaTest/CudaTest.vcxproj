@@ -88,6 +88,7 @@
   <ItemGroup>
     <ClInclude Include="src\core\aabb.h" />
     <ClInclude Include="src\core\camera.h" />
+    <ClInclude Include="src\core\deviceManage.h" />
     <ClInclude Include="src\core\ray.h" />
     <ClInclude Include="src\core\render.h" />
     <ClInclude Include="src\core\vec3.h" />

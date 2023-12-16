@@ -94,7 +94,7 @@ bool CreateFBXMeshData(const std::string& filePath, MeshData* data)
 		data->normals[polIndex] = vec3(normalVec4[0], normalVec4[1], normalVec4[2]);
 	}
 	printf("ÎßØºÞÝŽæ“¾Š®—¹\n");	
-
+	/*
 	//ƒ{[ƒ“Žæ“¾
 	int DeformerCount = mesh->GetDeformerCount();
 

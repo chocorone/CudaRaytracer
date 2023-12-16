@@ -1,4 +1,5 @@
 ﻿#include "core/render.h"
+#include "core/deviceManage.h"
 
 int main()
 {
@@ -13,14 +14,8 @@ int main()
     const int endFrame = 0;
 
     //ヒープサイズ・スタックサイズ指定
-    size_t heapSize = 1024 * 1024 * 1024;
-    size_t stackSize = 4096 * 2;
-    cudaDeviceSetLimit(cudaLimitMallocHeapSize, heapSize);
-    cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
-    cudaDeviceGetLimit(&heapSize, cudaLimitMallocHeapSize);
-    printf("Heap Size=%ld\n", heapSize);
-    cudaDeviceGetLimit(&stackSize, cudaLimitStackSize);
-    printf("Stack Size=%ld\n", stackSize);
+    ChangeHeapSize(1024 * 1024 * 1024);
+    ChangeStackSize(4096 * 2);
 
     // 画素のメモリ確保
     const int num_pixel = nx * ny;
@@ -49,13 +44,14 @@ int main()
     //FBXファイル読み込み
     MeshData* meshData;
     checkCudaErrors(cudaMallocManaged((void**)&meshData, sizeof(MeshData*)));
-    CreateFBXMeshData("./objects/HipHopDancing.fbx", meshData);
+    //CreateFBXMeshData("./objects/HipHopDancing.fbx", meshData);
+    CreateFBXMeshData("./objects/bunny2.fbx", meshData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
     // オブジェクト、カメラの生成
     AnimationDataList* animationData = new AnimationDataList();
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 400, 20), vec3(0, 0, 0), 10.0, 0.0, 60);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 0, 60), vec3(0, 0, 20), 10.0, 0.0, 60);
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
     init_data << <1, 1 >> > (world, transformPointer);
     add_mesh_withNormal << <1, 1 >> > (world, meshData, transformPointer);
