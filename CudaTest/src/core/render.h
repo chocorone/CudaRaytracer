@@ -141,8 +141,14 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
 
     // 画素のメモリ確保
     const int num_pixel = nx * ny;
-    vec3* colorBuffer;
-    checkCudaErrors(cudaMallocManaged((void**)&colorBuffer, num_pixel * sizeof(vec3)));
+    vec3* colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
+    for (int i = 0; i < nx * ny; i++)
+    {
+        colorBuffer[i] = vec3(0);
+    }
+    vec3* d_colorBuffer;
+    cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
+    cudaMemcpy(d_colorBuffer, colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
 
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
@@ -158,15 +164,16 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
+        cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny, cudaMemcpyDeviceToHost);
 
         //png書き出し
         RGB* rgb = new RGB[nx * ny];
         for (int i = 0; i < ny; i++) {
             for (int j = 0; j < nx; j++) {
                 size_t pixel_index = (ny - 1 - i) * nx + j;
-                rgb[i * nx + j].r = char(255.99 * colorBuffer[pixel_index].r());
-                rgb[i * nx + j].g = char(255.99 * colorBuffer[pixel_index].g());
-                rgb[i * nx + j].b = char(255.99 * colorBuffer[pixel_index].b());
+                rgb[i * nx + j].r = char(255.99 * d_colorBuffer[pixel_index].r());
+                rgb[i * nx + j].g = char(255.99 * d_colorBuffer[pixel_index].g());
+                rgb[i * nx + j].b = char(255.99 * d_colorBuffer[pixel_index].b());
                 rgb[i * nx + j].a = 255;
             }
         }
@@ -181,7 +188,8 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         printf("%dフレーム目:画像書き出し\n", frameIndex);
         delete[] pathname; 
     }
-    checkCudaErrors(cudaFree(colorBuffer));
+    checkCudaErrors(cudaFree(d_colorBuffer));
+    free(colorBuffer);
 }
 
 void BuildAnimatedSphere(HitableList** world, AnimationDataList* animationData, TransformList** transformPointer) {

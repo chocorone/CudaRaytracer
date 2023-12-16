@@ -6,8 +6,8 @@ int main()
     // パラメーター設定
     const int nx = 1024 * RESOLUTION;
     const int ny = 512 * RESOLUTION;  
-    const int tx = 16;
-    const int ty = 16;
+    const int threadX = 16;
+    const int threadY = 16;
     const int max_depth = 16;
     const int samples = 8;
     const int beginFrame = 0;
@@ -32,8 +32,8 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
     
     // 画素ごとに乱数を初期化
-    dim3 blocks(nx / tx + 1, ny / ty + 1);
-    dim3 threads(tx, ty);
+    dim3 blocks(nx / threadX + 1, ny / threadY + 1);
+    dim3 threads(threadX, threadY);
     random_init <<<blocks, threads >>> (nx, ny, curand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
