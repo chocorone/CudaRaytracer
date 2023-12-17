@@ -160,7 +160,7 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
             animationData->list[i]->SetNext(frameIndex);
         }
 
-        render << <blocks, threads >> > (colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
+        render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
@@ -171,9 +171,9 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         for (int i = 0; i < ny; i++) {
             for (int j = 0; j < nx; j++) {
                 size_t pixel_index = (ny - 1 - i) * nx + j;
-                rgb[i * nx + j].r = char(255.99 * d_colorBuffer[pixel_index].r());
-                rgb[i * nx + j].g = char(255.99 * d_colorBuffer[pixel_index].g());
-                rgb[i * nx + j].b = char(255.99 * d_colorBuffer[pixel_index].b());
+                rgb[i * nx + j].r = char(255.99 * colorBuffer[pixel_index].r());
+                rgb[i * nx + j].g = char(255.99 * colorBuffer[pixel_index].g());
+                rgb[i * nx + j].b = char(255.99 * colorBuffer[pixel_index].b());
                 rgb[i * nx + j].a = 255;
             }
         }
