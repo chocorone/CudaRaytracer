@@ -98,15 +98,8 @@ __device__ vec3 shade_normal(const Ray& r,
     }
 }
 
-__global__ void render(vec3* colorBuffer,
-    HitableList** world,
-    Camera** camera,
-    curandState* state,
-    int nx,
-    int ny,
-    int samples,
-    int max_depth,
-    int frameIndex) {
+__global__ void render(vec3* colorBuffer,HitableList** world,Camera** camera,curandState* state,
+    int nx,int ny,int samples,int max_depth,int frameIndex) {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
     if ((x >= nx) || (y >= ny)) return;
@@ -154,17 +147,17 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         // 位置更新処理
-        for (int i = 0; i < animationData->list_size; i++)
+        /*for (int i = 0; i < animationData->list_size; i++)
         {
             SetTransform << <1, 1 >> > (animationData->list[i]->Get_NextTransform(frameIndex), transformPointer, i);
             animationData->list[i]->SetNext(frameIndex);
-        }
+        }*/
 
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
-        cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny, cudaMemcpyDeviceToHost);
+        cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
 
         //png書き出し
         RGB* rgb = new RGB[nx * ny];
