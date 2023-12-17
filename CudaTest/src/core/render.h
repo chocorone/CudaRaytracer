@@ -42,7 +42,7 @@ __device__ vec3 backgroundSky(const vec3& d)
 }
 
 __device__ vec3 shade(const Ray& r,
-    HitableList** world,
+    Hitable** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -64,7 +64,7 @@ __device__ vec3 shade(const Ray& r,
 
 //ランバートシェードでのテスト
 __device__ vec3 LambertShade(const Ray& r,
-    HitableList** world,
+    Hitable** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -84,7 +84,7 @@ __device__ vec3 LambertShade(const Ray& r,
 
 // 法線のテスト
 __device__ vec3 shade_normal(const Ray& r,
-    HitableList** world,
+    Hitable** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -98,7 +98,7 @@ __device__ vec3 shade_normal(const Ray& r,
     }
 }
 
-__global__ void render(vec3* colorBuffer,HitableList** world,Camera** camera,curandState* state,
+__global__ void render(vec3* colorBuffer, Hitable** world,Camera** camera,curandState* state,
     int nx,int ny,int samples,int max_depth,int frameIndex) {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -129,7 +129,7 @@ __global__ void SetTransform(Transform transform, TransformList** transformPoint
 }
 
 void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    HitableList** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
+    Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
     dim3 blocks, dim3 threads, curandState* curand_state) {
 
     // 画素のメモリ確保
