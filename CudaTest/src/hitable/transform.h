@@ -20,10 +20,14 @@ public:
      }
 
      __device__ void TransformAABB(AABB& aabb) {
-         //printf("from min:(%f,%f,%f) max:(%f,%f,%f)\n", aabb.min().x(), aabb.min().y(), aabb.min().z(), aabb.max().x(), aabb.max().y(), aabb.max().z());
-         aabb =  AABB(aabb.min() + position, aabb.max() + position);
-         //printf("to min:(%f,%f,%f) max:(%f,%f,%f)\n", aabb.min().x(), aabb.min().y(), aabb.min().z(), aabb.max().x(), aabb.max().y(), aabb.max().z());
+         //âÒì]?ä‘à·Ç¡ÇƒÇ¢ÇÈÅH
+         vec3 rotetedMin = rotate(aabb.min(), rotation);
+         vec3 rotetedMax = rotate(aabb.max(), rotation);
+         vec3 min = minVec3(rotetedMin, rotetedMax);
+         vec3 max = maxVec3(rotetedMin,rotetedMax);
 
+         //à íuà⁄ìÆ
+         aabb =  AABB(min + position, max + position);
      }
 
     vec3 position;

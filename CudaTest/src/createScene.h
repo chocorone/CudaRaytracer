@@ -30,6 +30,7 @@ __global__ void init_data(HitableList** world, TransformList** transformPointer)
 //BVHの作成
 __global__ void create_BVH(HitableList** world, BVHNode** bvh,curandState* state) {
     *bvh = new BVHNode((*world)->list, (*world)->list_size, 0, 1, state);
+    (*bvh)->transform->rotation = vec3(0, 45, 0);
 }
 
 // オブジェクトの生成
@@ -40,9 +41,12 @@ __global__ void add_object(HitableList** world,  TransformList** transformPointe
 
         Texture* checker = new CheckerTexture(new ConstantTexture(vec3(0.2, 0.3, 0.1)),
             new ConstantTexture(vec3(0.9, 0.9, 0.9)));
-        (*world)->append(new Sphere(new Transform(vec3(-10,-10, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.8, 0.1, 0.1)))));
-        (*world)->append(new Sphere(new Transform(), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.8, 0.1)))));
-        (*world)->append(new Sphere(new Transform(vec3(5, 5, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.1, 0.8)))));
+        (*world)->append(new Rectangle(new Lambertian(new ConstantTexture(vec3(0.8, 0.1, 0.1))), false, new Transform(vec3(-2.5, -2.5, 0), vec3(0), vec3(5, 2, 1))));
+        (*world)->append(new Rectangle(new Lambertian(new ConstantTexture(vec3(0.1, 0.8, 0.1))), false, new Transform(vec3(0, 0, 0), vec3(0), vec3(2, 10, 1))));
+        (*world)->append(new Rectangle(new Lambertian(new ConstantTexture(vec3(0.1, 0.1, 0.8))),false, new Transform(vec3(3, 2, 0), vec3(0), vec3(4, 4, 1))));
+        //(*world)->append(new Sphere(new Transform(vec3(-10,-10, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.8, 0.1, 0.1)))));
+        //(*world)->append(new Sphere(new Transform(), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.8, 0.1)))));
+        //(*world)->append(new Sphere(new Transform(vec3(5, 5, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.1, 0.8)))));
        
 
         /*Transform* transform1 = new Transform(vec3(0, 1, 0), vec3(0), vec3(1));
@@ -59,26 +63,6 @@ __global__ void add_object(HitableList** world,  TransformList** transformPointe
     }
 }
 
-
-__global__ void add_mesh_withNormal(HitableList** world, vec3* points, vec3* idxVertex, vec3* normal,
-    int np, int nt, TransformList** transformPointer)
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
-        
-        int l = 0;
-        for (int i = 0; i < nt; i++) {
-            vec3 idx = idxVertex[i];
-            vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            Transform* transform = new Transform(vec3(0),vec3(0,0,0),vec3(0.05));
-            //(*transformPointer)->append(transform);//とりあえずなしで
-            (*world)->append(new Triangle(v, normal[i], mat, false,transform, true));
-        }
-    }
-}
-
-
 __global__ void add_mesh_withNormal(HitableList** world, MeshData* data, TransformList** transformPointer)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
@@ -89,33 +73,12 @@ __global__ void add_mesh_withNormal(HitableList** world, MeshData* data, Transfo
         for (int i = 0; i < data->nTriangles; i++) {
             vec3 idx = data->idxVertex[i];
             vec3 v[3] = { data->points[int(idx[2])], data->points[int(idx[1])], data->points[int(idx[0])] };
-            Transform* transform = new Transform(vec3(0), vec3(0, 0, 0), vec3(0.05));
+            Transform* transform = new Transform(vec3(0), vec3(0,0,0), vec3(1));
             //(*transformPointer)->append(transform);//とりあえずなしで
             (*world)->append(new Triangle(v, data->normals[i], mat, false, transform, true));
         }
     }
 }
-
-/*
-__global__ void draw_one_mesh(Hitable** world,Hitable** list,vec3* points,vec3* idxVertex,
-    int np, int nt,curandState* state) 
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        Material* mat = new DiffuseLight(new ConstantTexture(vec3(0.4, 0.7, 0.5)));
-
-        int l = 0;
-        for (int i = 0; i < nt; i++) {
-            vec3 idx = idxVertex[i];
-            vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            list[l++] = new Triangle(v, mat, true);
-        }
-
-        *world = new BVHNode(list, l, 0, 1, state);
-    }
-}
-*/
-
 
 
 __global__ void cornell_box_scene(Hitable** world, Hitable** list, curandState* state)

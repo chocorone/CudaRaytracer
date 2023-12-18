@@ -232,3 +232,11 @@ __host__ __device__ inline vec3 SLerp(vec3 start, vec3 end, float t) {
 
     return unit_vector(out);
 }
+
+__host__ __device__ inline vec3 maxVec3(vec3 a,vec3 b) {
+    return vec3(max(a.x(), b.x()), max(a.y(), b.y()), max(a.z(), b.z()));
+}
+
+__host__ __device__ inline vec3 minVec3(vec3 a, vec3 b) {
+    return vec3(min(a.x(), b.x()), min(a.y(), b.y()), min(a.z(), b.z()));
+}
