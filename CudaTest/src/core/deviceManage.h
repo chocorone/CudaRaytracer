@@ -29,6 +29,23 @@ void ChangeStackSize(size_t stackSize){
     printf("Stack Size=%ld\n", stackSize);
 }
 
+__global__ void random_init(int nx,
+    int ny,
+    curandState* state) {
+    int x = threadIdx.x + blockIdx.x * blockDim.x;
+    int y = threadIdx.y + blockIdx.y * blockDim.y;
+    if ((x >= nx) || (y >= ny)) return;
+    int pixel_index = y * nx + x;
+    curand_init(0, pixel_index, 0, &state[pixel_index]);
+}
+
+void SetCurandState(curandState* curand_state,int nx,int ny,dim3 blocks,dim3 threads) {
+    // ‰æ‘f‚²‚Æ‚É—”‚ğ‰Šú‰»
+    random_init << <blocks, threads >> > (nx, ny, curand_state);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+}
+
 __global__ void destroy(HitableList** world,
     Camera** camera, TransformList** transformPointer) {
 
@@ -48,12 +65,3 @@ __global__ void destroy(MeshData* meshData) {
 
 }
 
-__global__ void random_init(int nx,
-    int ny,
-    curandState* state) {
-    int x = threadIdx.x + blockIdx.x * blockDim.x;
-    int y = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((x >= nx) || (y >= ny)) return;
-    int pixel_index = y * nx + x;
-    curand_init(0, pixel_index, 0, &state[pixel_index]);
-}

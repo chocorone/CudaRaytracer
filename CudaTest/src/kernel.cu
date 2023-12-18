@@ -14,13 +14,16 @@ int main()
     const int endFrame = 0;
 
     const int num_pixel = nx * ny;
+    dim3 blocks(nx / threadX + 1, ny / threadY + 1);
+    dim3 threads(threadX, threadY);
 
     //ヒープサイズ・スタックサイズ指定
     ChangeHeapSize(1024 * 1024 * 1024);
     ChangeStackSize(4096 * 2);
     // 乱数列生成用のメモリ確保
     curandState* curand_state;
-    checkCudaErrors(cudaMallocManaged((void**)&curand_state, num_pixel * sizeof(curandState)));
+    checkCudaErrors(cudaMallocManaged((void**)&curand_state, nx * ny * sizeof(curandState)));
+    SetCurandState(curand_state, nx, ny, blocks, threads);
 
     //シーン保存用の変数のメモリ確保
     HitableList** world;
@@ -32,24 +35,19 @@ int main()
     BVHNode** bvh;
     checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
     
-    // 画素ごとに乱数を初期化
-    dim3 blocks(nx / threadX + 1, ny / threadY + 1);
-    dim3 threads(threadX, threadY);
-    random_init <<<blocks, threads >>> (nx, ny, curand_state);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
+
 
     //FBXファイル読み込み
     MeshData* meshData;
     checkCudaErrors(cudaMallocManaged((void**)&meshData, sizeof(MeshData*)));
-    CreateFBXMeshData("./objects/HipHopDancing.fbx", meshData);
+    //CreateFBXMeshData("./objects/HipHopDancing.fbx", meshData);
     CreateFBXMeshData("./objects/bunny2.fbx", meshData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
     // オブジェクト、カメラの生成
     AnimationDataList* animationData = new AnimationDataList();
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0,0,20), vec3(0, 0, 0), 10.0, 0.0, 60);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0,20,400), vec3(0, 20, 0), 10.0, 0.0, 60);
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
     init_data << <1, 1 >> > (world, transformPointer);
     //BuildAnimatedSphere(world,animationData, transformPointer);
