@@ -10,7 +10,7 @@ public:
 
     __device__ virtual bool collision_detection(const Ray& r, float t0, float t1, HitRecord& rec, int frameIndex) const;
     __device__ virtual bool bounding_box(float t0, float t1, AABB& box) const {
-        box = AABB(vec3(-0.5, -0.5, -0.0001), vec3(0.5, 0.5, 0.0001));
+        box = AABB(vec3(-0.5, -0.5, -0.0001)*transform->scale, vec3(0.5, 0.5, 0.0001) * transform->scale);
         return true;
     }
     Material* mat_ptr;

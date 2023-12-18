@@ -42,9 +42,17 @@ public:
         float t_max,
         HitRecord& rec, int frameIndex) const = 0;
 
-    __device__ virtual bool bounding_box(float t0,
-        float t1,
-        AABB& box) const = 0;
+    __device__ bool GetBV(float t0,float t1,AABB& box) 
+    {
+        bool flag = bounding_box(t0, t1, box);
+        transform->TransformAABB(box);
+        return flag;
+    }
 
     Transform* transform;
+protected:
+__device__ virtual bool bounding_box(float t0,
+    float t1,
+    AABB& box) const = 0;
+
 };

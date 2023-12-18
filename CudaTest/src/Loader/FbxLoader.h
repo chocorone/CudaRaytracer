@@ -95,56 +95,69 @@ bool CreateFBXMeshData(const std::string& filePath, MeshData* data)
 	}
 	printf("ﾎﾟﾘｺﾞﾝ取得完了\n");	
 
-	//ボーン取得
-	/*int DeformerCount = mesh->GetDeformerCount();
-
-	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
-	//親子関係取得
-	printAllNode(pSkin->GetCluster(0)->GetLink(), 0);
-
-	/*
-	printf("でふぉーまー数：%d\n", DeformerCount);
-	for (int i = 0; i < DeformerCount; ++i)
-	{
-		printf("%s\n", mesh->GetDeformer(i)->GetName());
-		if (mesh->GetDeformer(i)->GetDeformerType() == fbxsdk::FbxDeformer::EDeformerType::eSkin)
-		{
-			//ボーン取得
-			fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(i));
-			int ClusterCount = pSkin->GetClusterCount();
-			for (int i = 0; i < ClusterCount; ++i)
-			{
-				fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
-
-				if (pCluster->GetLinkMode() != fbxsdk::FbxCluster::eTotalOne)
-				{
-					int ControlPointIndicesCount = pCluster->GetControlPointIndicesCount();
-					printf("ボーン名：%s　影響頂点数：%d\n", pCluster->GetNameOnly(), ControlPointIndicesCount);
-					//ボーンの各頂点への影響取得
-					for (int j = 0; j < ControlPointIndicesCount; ++j)
-					{
-						printf("%f\n", (pCluster->GetControlPointWeights())[j]);
-					}
-				}
-
-			}
-		}
-	}
-
 	//アニメーション情報取得
 	int animStackCount = importer->GetAnimStackCount();
 	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
 	FbxLongLong start = pFbxTakeInfo->mLocalTimeSpan.GetStart().Get();
 	FbxLongLong stop = pFbxTakeInfo->mLocalTimeSpan.GetStop().Get();
-
 	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames60);
-
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
+	
+	//ボーン取得
+	int DeformerCount = mesh->GetDeformerCount();
+	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
+	//親子関係取得
+	//printAllNode(pSkin->GetCluster(0)->GetLink(), 0);
+
+	//ウェイト取得
+	printf("でふぉーまー数：%d\n", DeformerCount);
+	for (int i = 0; i < DeformerCount; i++)
+	{
+		printf("%s\n", mesh->GetDeformer(i)->GetName());
+		if (mesh->GetDeformer(i)->GetDeformerType() != fbxsdk::FbxDeformer::EDeformerType::eSkin)continue;
+		
+		//ボーン取得
+		fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(i));
+		int ClusterCount = pSkin->GetClusterCount();
+		for (int i = 0; i < ClusterCount; i++)
+		{
+			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
+			//fbxsdk::FbxAMatrix initMat =FbxAMatrix();
+			//pCluster->GetTransformLinkMatrix(initMat);
+
+			//ボーンのデフォルトのローカル座標を取得
+			FbxNode* node = pCluster->GetLink();
+			printf("%s:\n", node->GetName());
+			//printf("local transform %f,%f,%f\n", node->LclTranslation.Get()[0], node->LclTranslation.Get()[1], node->LclTranslation.Get()[2]);
+			//printf("local rotation %f,%f,%f\n", node->LclRotation.Get()[0], node->LclRotation.Get()[1], node->LclRotation.Get()[2]);
+			
+
+			//指定フレームでの回転を取得？最初は回転だけ正しい
+			int frame = oneFrameValue * 30;
+			printf("local transform %f,%f,%f\n", node->EvaluateLocalTranslation(frame)[0], node->EvaluateLocalTranslation(frame)[1], node->EvaluateLocalTranslation(frame)[2]);
+			printf("local rotation %f,%f,%f,%f\n", node->EvaluateLocalRotation(frame)[0], node->EvaluateLocalRotation(frame)[1], node->EvaluateLocalRotation(frame)[2], node->EvaluateLocalRotation(frame)[3]);
+
+			
+			/*if (pCluster->GetLinkMode() != fbxsdk::FbxCluster::eTotalOne)
+			{
+				int ControlPointIndicesCount = pCluster->GetControlPointIndicesCount();
+				printf("ボーン名：%s　影響頂点数：%d\n", pCluster->GetNameOnly(), ControlPointIndicesCount);
+				//ボーンの各頂点へのウェイト取得
+				for (int j = 0; j < ControlPointIndicesCount; j++)
+				{
+					printf("%f\n", (pCluster->GetControlPointWeights())[j]);
+				}
+			}*/
+		}
+		
+	}
+
+
 
 	//ポーズ情報取得
 	printf("ボーン取得完了\n");
-	*/
+	
 
 	// マネージャー、シーンの破棄
 	importer->Destroy();

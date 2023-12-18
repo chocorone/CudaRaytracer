@@ -20,57 +20,13 @@
 #include <curand_kernel.h>
 
 
-#include "../test_scene.h"
+#include "../createScene.h"
 
 #include "../Loader/FbxLoader.h"
-
+#include "core/deviceManage.h"
 
 #define RESOLUTION 1
 
-#define checkCudaErrors(val) check_cuda((val), #val, __FILE__, __LINE__)
-
-#define CHECK(call) {const cudaError_t error = call;  if (error != cudaSuccess)  { printf("Error: %s:%d, ", __FILE__, __LINE__); printf("code:%d, reason: %s\n", error, cudaGetErrorString(error)); exit(1); } }
-
-void check_cuda(cudaError_t result,
-    char const* const func,
-    const char* const file,
-    int const line) {
-    if (result) {
-        std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
-            file << ":" << line << " '" << func << "' \n";
-        cudaDeviceReset();
-        exit(99);
-    }
-}
-
-__global__ void destroy(HitableList** world,
-    Camera** camera, TransformList** transformPointer) {
-
-    (*world)->freeMemory();
-    (*transformPointer)->freeMemory();
-    delete* world;
-    delete* camera;
-    delete* transformPointer;
-    
-}
-
-__global__ void destroy(MeshData* meshData) {
-
-    delete meshData->points;
-    delete meshData->normals;
-    delete meshData->idxVertex;
-
-}
-
-__global__ void random_init(int nx,
-    int ny,
-    curandState* state) {
-    int x = threadIdx.x + blockIdx.x * blockDim.x;
-    int y = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((x >= nx) || (y >= ny)) return;
-    int pixel_index = y * nx + x;
-    curand_init(0, pixel_index, 0, &state[pixel_index]);
-}
 
 struct RGB {
     unsigned char r, g, b, a; //赤, 緑, 青, 透過
@@ -86,7 +42,7 @@ __device__ vec3 backgroundSky(const vec3& d)
 }
 
 __device__ vec3 shade(const Ray& r,
-    HitableList** world,
+    Hitable** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -108,7 +64,7 @@ __device__ vec3 shade(const Ray& r,
 
 //ランバートシェードでのテスト
 __device__ vec3 LambertShade(const Ray& r,
-    HitableList** world,
+    Hitable** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -128,7 +84,7 @@ __device__ vec3 LambertShade(const Ray& r,
 
 // 法線のテスト
 __device__ vec3 shade_normal(const Ray& r,
-    HitableList** world,
+    Hitable** world,
     int depth,
     curandState* state, int frameIndex) {
     HitRecord rec;
@@ -142,15 +98,8 @@ __device__ vec3 shade_normal(const Ray& r,
     }
 }
 
-__global__ void render(vec3* colorBuffer,
-    HitableList** world,
-    Camera** camera,
-    curandState* state,
-    int nx,
-    int ny,
-    int samples,
-    int max_depth,
-    int frameIndex) {
+__global__ void render(vec3* colorBuffer, Hitable** world,Camera** camera,curandState* state,
+    int nx,int ny,int samples,int max_depth,int frameIndex) {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
     if ((x >= nx) || (y >= ny)) return;
@@ -163,8 +112,8 @@ __global__ void render(vec3* colorBuffer,
         float u = float(x + curand_uniform(&(state[pixel_index]))) / float(nx);
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
-        //col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
-        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
+        //col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
         //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);
@@ -180,46 +129,44 @@ __global__ void SetTransform(Transform transform, TransformList** transformPoint
 }
 
 void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    HitableList** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
+    Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
     dim3 blocks, dim3 threads, curandState* curand_state) {
 
-    //メモリの確保
-    /*vec3* colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
+    // 画素のメモリ確保
+    const int num_pixel = nx * ny;
+    vec3* colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
     for (int i = 0; i < nx * ny; i++)
     {
         colorBuffer[i] = vec3(0);
-    }*/
+    }
     vec3* d_colorBuffer;
-    /*cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
-    cudaMemcpy(d_colorBuffer, colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);*/
-
-    checkCudaErrors(cudaMallocManaged((void**)&d_colorBuffer,  nx * ny  * sizeof(vec3)));
-
+    cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
+    cudaMemcpy(d_colorBuffer, colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
 
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         // 位置更新処理
-        for (int i = 0; i < animationData->list_size; i++)
+        /*for (int i = 0; i < animationData->list_size; i++)
         {
             SetTransform << <1, 1 >> > (animationData->list[i]->Get_NextTransform(frameIndex), transformPointer, i);
             animationData->list[i]->SetNext(frameIndex);
-        }
+        }*/
 
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
-        //cudaMemcpy(colorBuffer, d_colorBuffer, nx*ny, cudaMemcpyDeviceToHost);
+        cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
 
         //png書き出し
         RGB* rgb = new RGB[nx * ny];
         for (int i = 0; i < ny; i++) {
             for (int j = 0; j < nx; j++) {
                 size_t pixel_index = (ny - 1 - i) * nx + j;
-                rgb[i * nx + j].r = char(255.99 * d_colorBuffer[pixel_index].r());
-                rgb[i * nx + j].g = char(255.99 * d_colorBuffer[pixel_index].g());
-                rgb[i * nx + j].b = char(255.99 * d_colorBuffer[pixel_index].b());
+                rgb[i * nx + j].r = char(255.99 * colorBuffer[pixel_index].r());
+                rgb[i * nx + j].g = char(255.99 * colorBuffer[pixel_index].g());
+                rgb[i * nx + j].b = char(255.99 * colorBuffer[pixel_index].b());
                 rgb[i * nx + j].a = 255;
             }
         }
@@ -234,9 +181,8 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         printf("%dフレーム目:画像書き出し\n", frameIndex);
         delete[] pathname; 
     }
-
     checkCudaErrors(cudaFree(d_colorBuffer));
-    //free(colorBuffer);
+    free(colorBuffer);
 }
 
 void BuildAnimatedSphere(HitableList** world, AnimationDataList* animationData, TransformList** transformPointer) {
