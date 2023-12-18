@@ -1,5 +1,87 @@
 ﻿#include "core/render.h"
 
+class CudaPointerList 
+{
+public:
+    CudaPointerList() { list = new void* (); list_size = 0; }
+    CudaPointerList(void** l, int n) { list = l; list_size = n; }
+    void append(void** data)
+    {
+        void** tmp = (void**)malloc(sizeof(void*) * list_size);
+
+        for (int i = 0; i < list_size; i++)
+        {
+            tmp[i] = list[i];
+        }
+
+        free(list);
+
+        list_size++;
+
+        list = (void**)malloc(sizeof(void*) * list_size);
+
+        for (int i = 0; i < list_size - 1; i++)
+        {
+            list[i] = tmp[i];
+        }
+        list[list_size - 1] = data;
+
+        free(tmp);
+    }
+    void freeMemory()
+    {
+        for (size_t i = 0; i < list_size; i++)
+        {
+            checkCudaErrors(cudaFree(list[i]));
+        }
+        free(list);
+        list_size = 0;
+    }
+    void** list;
+    int list_size;
+};
+
+
+class HostPointerList
+{
+public:
+    HostPointerList() { list = new void* (); list_size = 0; }
+    HostPointerList(void** l, int n) { list = l; list_size = n; }
+    void append(void** data)
+    {
+        void** tmp = (void**)malloc(sizeof(void*) * list_size);
+
+        for (int i = 0; i < list_size; i++)
+        {
+            tmp[i] = list[i];
+        }
+
+        free(list);
+
+        list_size++;
+
+        list = (void**)malloc(sizeof(void*) * list_size);
+
+        for (int i = 0; i < list_size - 1; i++)
+        {
+            list[i] = tmp[i];
+        }
+        list[list_size - 1] = data;
+
+        free(tmp);
+    }
+    void freeMemory()
+    {
+        for (size_t i = 0; i < list_size; i++)
+        {
+            free(list[i]);
+        }
+        free(list);
+        list_size = 0;
+    }
+    void** list;
+    int list_size;
+};
 
 int main()
 {
@@ -16,6 +98,7 @@ int main()
     const int num_pixel = nx * ny;
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
     dim3 threads(threadX, threadY);
+    CudaPointerList* pointerList = new CudaPointerList();//あとで破棄するデバイス用ポインターのリスト
 
     //ヒープサイズ・スタックサイズ指定
     ChangeHeapSize(1024 * 1024 * 1024);
@@ -24,6 +107,7 @@ int main()
     curandState* curand_state;
     checkCudaErrors(cudaMallocManaged((void**)&curand_state, nx * ny * sizeof(curandState)));
     SetCurandState(curand_state, nx, ny, blocks, threads);
+    pointerList->append((void**)curand_state);
 
     //シーン保存用の変数のメモリ確保
     HitableList** world;
@@ -35,13 +119,11 @@ int main()
     BVHNode** bvh;
     checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
     
-
-
     //FBXファイル読み込み
     MeshData* meshData;
     checkCudaErrors(cudaMallocManaged((void**)&meshData, sizeof(MeshData*)));
-    //CreateFBXMeshData("./objects/HipHopDancing.fbx", meshData);
-    CreateFBXMeshData("./objects/bunny2.fbx", meshData);
+    CreateFBXMeshData("./objects/HipHopDancing.fbx", meshData);
+    //CreateFBXMeshData("./objects/bunny2.fbx", meshData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -77,9 +159,9 @@ int main()
     checkCudaErrors(cudaFree(world));
     checkCudaErrors(cudaFree(camera));
     checkCudaErrors(cudaFree(transformPointer));
-    checkCudaErrors(cudaFree(curand_state));
     checkCudaErrors(cudaFree(meshData));
     checkCudaErrors(cudaFree(bvh));
+    pointerList->freeMemory();
 
     
     cudaDeviceReset();
