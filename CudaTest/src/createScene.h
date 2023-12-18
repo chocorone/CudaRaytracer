@@ -26,11 +26,11 @@ __global__ void init_data(HitableList** world, TransformList** transformPointer)
     *world = new HitableList();
     *transformPointer = new TransformList();
 }
-/*
+
 //BVHの作成
 __global__ void create_BVH(HitableList** world, BVHNode** bvh,curandState* state) {
-    *bvh = new BVHNode(world, world->listCount, 0, 1, state);
-}*/
+    *bvh = new BVHNode((*world)->list, (*world)->list_size, 0, 1, state);
+}
 
 // オブジェクトの生成
 __global__ void add_object(HitableList** world,  TransformList** transformPointer)
@@ -40,8 +40,12 @@ __global__ void add_object(HitableList** world,  TransformList** transformPointe
 
         Texture* checker = new CheckerTexture(new ConstantTexture(vec3(0.2, 0.3, 0.1)),
             new ConstantTexture(vec3(0.9, 0.9, 0.9)));
+        (*world)->append(new Sphere(new Transform(vec3(-10,-10, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.8, 0.1, 0.1)))));
+        (*world)->append(new Sphere(new Transform(), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.8, 0.1)))));
+        (*world)->append(new Sphere(new Transform(vec3(5, 5, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.1, 0.8)))));
+       
 
-        Transform* transform1 = new Transform(vec3(0, 1, 0), vec3(0), vec3(1));
+        /*Transform* transform1 = new Transform(vec3(0, 1, 0), vec3(0), vec3(1));
         Transform* transform2 = new Transform(vec3(-4, 1, 0), vec3(0), vec3(1));
         Transform* transform3 = new Transform(vec3(4, 1, 0), vec3(0), vec3(1));
 
@@ -51,7 +55,7 @@ __global__ void add_object(HitableList** world,  TransformList** transformPointe
 
         (*transformPointer)->append(transform1);
         (*transformPointer)->append(transform2);
-        (*transformPointer)->append(transform3);
+        (*transformPointer)->append(transform3);*/
     }
 }
 

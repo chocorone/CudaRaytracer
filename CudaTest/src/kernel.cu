@@ -29,8 +29,8 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
     checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
-    //BVHNode** bvh;
-    //checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
+    BVHNode** bvh;
+    checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
     
     // 画素ごとに乱数を初期化
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
@@ -59,14 +59,16 @@ int main()
     checkCudaErrors(cudaDeviceSynchronize());
 
     //BVHの作成
-    //create_BVH << <1, 1 >> > (world, bvh, curand_state);
-    //CHECK(cudaDeviceSynchronize());
-    //checkCudaErrors(cudaGetLastError());
-    //checkCudaErrors(cudaDeviceSynchronize());
+    printf("create BVH\n");
+    create_BVH << <1, 1 >> > (world, bvh, curand_state);
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
     printf("シーン作成完了\n");
 
     //レンダリング
-    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera,animationData,transformPointer,blocks,threads,curand_state);
+    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, blocks, threads, curand_state);
+    //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvh, camera,animationData,transformPointer,blocks,threads,curand_state);
     
     //メモリ解放
     animationData->freeMemory();
@@ -79,7 +81,7 @@ int main()
     checkCudaErrors(cudaFree(transformPointer));
     checkCudaErrors(cudaFree(curand_state));
     //checkCudaErrors(cudaFree(meshData));
-    //checkCudaErrors(cudaFree(bvh));
+    checkCudaErrors(cudaFree(bvh));
 
     
     cudaDeviceReset();

@@ -7,13 +7,24 @@ class Transform {
 public:
     __host__ __device__ Transform() { position = vec3(); rotation = vec3(); scale = vec3(1); }
     __host__ __device__ Transform(vec3 p, vec3 r, vec3 s) : position(p), rotation(r), scale(s)
-    {
-        //printf("set transform\n");
-    }
+    {}
      __device__ Ray TransformRay(const Ray& r)
     {
         return  TranslateRay(RotateRay(ScaleRay(r)));
     }
+
+     __device__ void ResetTransform() {
+         position = vec3(0);
+         rotation = vec3(0);
+         scale = vec3(1);
+     }
+
+     __device__ void TransformAABB(AABB& aabb) {
+         //printf("from min:(%f,%f,%f) max:(%f,%f,%f)\n", aabb.min().x(), aabb.min().y(), aabb.min().z(), aabb.max().x(), aabb.max().y(), aabb.max().z());
+         aabb =  AABB(aabb.min() + position, aabb.max() + position);
+         //printf("to min:(%f,%f,%f) max:(%f,%f,%f)\n", aabb.min().x(), aabb.min().y(), aabb.min().z(), aabb.max().x(), aabb.max().y(), aabb.max().z());
+
+     }
 
     vec3 position;
     vec3 rotation;
@@ -37,6 +48,7 @@ private:
         Ray scaled_r(r.origin(), unit_vector(dir), r.time()*dir.length());
         return scaled_r;
     }
+
 
 };
 

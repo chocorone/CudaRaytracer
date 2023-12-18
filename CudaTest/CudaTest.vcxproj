@@ -106,7 +106,7 @@
     <ClInclude Include="src\shapes\sphere.h" />
     <ClInclude Include="src\hitable\transform.h" />
     <ClInclude Include="src\shapes\triangle.h" />
-    <ClInclude Include="src\test_scene.h" />
+    <ClInclude Include="src\createScene.h" />
     <ClInclude Include="stb-master\stb_connected_components.h" />
     <ClInclude Include="stb-master\stb_c_lexer.h" />
     <ClInclude Include="stb-master\stb_divide.h" />

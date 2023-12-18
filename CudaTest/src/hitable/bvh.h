@@ -15,7 +15,7 @@ struct BoxCompare {
         Hitable* ah = a;
         Hitable* bh = b;
 
-        if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right)) {
+        if (!ah->GetBV(0, 0, box_left) || !bh->GetBV(0, 0, box_right)) {
             return false;
         }
 
@@ -44,7 +44,7 @@ struct BoxCompare {
     int mode;
 };
 
-/*
+
 class BVHNode : public Hitable {
 public:
     __device__ BVHNode() {}
@@ -52,12 +52,12 @@ public:
         int n,
         float time0,
         float time1,
-        curandState* state);
+        curandState* state) ;
 
-    __device__ virtual bool hit(const Ray& r,
+    __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
         float t_max,
-        HitRecord& rec) const;
+        HitRecord& rec, int frameIndex) const;
 
     __device__ virtual bool bounding_box(float t0,
         float t1,
@@ -74,6 +74,9 @@ __device__ BVHNode::BVHNode(Hitable** l,
     float time0,
     float time1,
     curandState* state) {
+    transform->ResetTransform();
+    printf("transform %f,%f,%f\n", transform->rotation.x(), transform->rotation.y(), transform->rotation.z());
+
     int axis = int(3 * curand_uniform(state));
     if (axis == 0) {
         thrust::sort(l, l + n, BoxCompare(1));
@@ -98,13 +101,12 @@ __device__ BVHNode::BVHNode(Hitable** l,
     }
 
     AABB box_left, box_right;
-    if (!left->bounding_box(time0, time1, box_left) ||
-        !right->bounding_box(time0, time1, box_right)) {
+    if (!left->GetBV(time0, time1, box_left) ||
+        !right->GetBV(time0, time1, box_right)) {
         return;
         // std::cerr << "no bounding box in BVHNode constructor \n";
     }
-    box = surrounding_box(box_left, box_right);
-
+   box = surrounding_box(box_left, box_right);
 }
 
 
@@ -116,14 +118,15 @@ __device__ bool BVHNode::bounding_box(float t0,
 }
 
 
-__device__ bool BVHNode::hit(const Ray& r,
+__device__ bool BVHNode::collision_detection(const Ray& r,
     float t_min,
     float t_max,
-    HitRecord& rec) const {
+    HitRecord& rec, int frameIndex) const {
     if (box.hit(r, t_min, t_max)) {
         HitRecord left_rec, right_rec;
-        bool hit_left = left->hit(r, t_min, t_max, left_rec);
-        bool hit_right = right->hit(r, t_min, t_max, right_rec);
+        bool hit_left = left->hit(r, t_min, t_max, left_rec, frameIndex);
+        bool hit_right = right->hit(r, t_min, t_max, right_rec, frameIndex);
+
         if (hit_left && hit_right) {
             if (left_rec.t < right_rec.t) {
                 rec = left_rec;
@@ -147,4 +150,3 @@ __device__ bool BVHNode::hit(const Ray& r,
     }
     return false;
 }
-*/

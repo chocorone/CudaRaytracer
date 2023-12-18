@@ -72,7 +72,7 @@ __device__ bool HitableList::bounding_box(float t0,
     if (list_size < 1) return false;
 
     AABB tmp_box;
-    bool first_true = list[0]->bounding_box(t0, t1, tmp_box);
+    bool first_true = list[0]->GetBV(t0, t1, tmp_box);
 
     if (!first_true) {
         return false;
@@ -82,7 +82,7 @@ __device__ bool HitableList::bounding_box(float t0,
     }
 
     for (int i = 1; i < list_size; i++) {
-        if (list[i]->bounding_box(t0, t1, tmp_box)) {
+        if (list[i]->GetBV(t0, t1, tmp_box)) {
             box = surrounding_box(box, tmp_box);
         }
         else {
