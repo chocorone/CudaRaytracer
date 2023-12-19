@@ -4,7 +4,7 @@
 class Bone {
 public:
     __host__ __device__ Bone() {}
-    __host__ __device__ Bone(char* name, vec3 defaultT, vec3 defaultR, vec3 t, vec3 r, int* indices, double* weight) {
+    __host__ __device__ Bone(const char* name, vec3 defaultT, vec3 defaultR, vec3 t, vec3 r, int* indices, double* weight) {
         boneName = name;
         defaultTransform = defaultT;
         defaultRotation = defaultR;
@@ -14,7 +14,15 @@ public:
         weights = weight;
     }
 
-    char* boneName;
+    __host__ __device__ vec3 GetDiffTransform() {
+        return nowTransform - defaultTransform;
+    }
+
+    __host__ __device__ vec3 GetDiffRotation() {
+        return nowRotation - defaultRotation;
+    }
+
+    const char* boneName;
     vec3 defaultTransform;
     vec3 defaultRotation;
     vec3 nowTransform;
@@ -24,6 +32,7 @@ public:
 };
 
 class BonePoseData {
+public:
     __host__ __device__ BonePoseData() {}
     __host__ __device__ BonePoseData(vec3 t,vec3 r) {
         nowLclTransforom = t;

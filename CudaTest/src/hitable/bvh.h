@@ -75,7 +75,7 @@ __device__ BVHNode::BVHNode(Hitable** l,
     float time1,
     curandState* state) {
     transform->ResetTransform();
-    printf("transform %f,%f,%f\n", transform->rotation.x(), transform->rotation.y(), transform->rotation.z());
+    //printf("transform %f,%f,%f\n", transform->rotation.x(), transform->rotation.y(), transform->rotation.z());
 
     int axis = int(3 * curand_uniform(state));
     if (axis == 0) {
