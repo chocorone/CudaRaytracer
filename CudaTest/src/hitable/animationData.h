@@ -1,6 +1,60 @@
 #pragma once
 #include "transform.h"
 
+class Bone {
+public:
+    __host__ __device__ Bone() {}
+    __host__ __device__ Bone(char* name, vec3 defaultT, vec3 defaultR, int* indices, double* weight) {
+        boneName = name;
+        defaultTransform = defaultT;
+        defaultRotation = defaultR;
+        weightIndices = indices;
+        weights = weight;
+        childCount = 0;
+        chilren = new Bone * ();
+
+    }
+
+    __host__ __device__ void addChild(Bone* bone) {
+        Bone** tmp = (Bone**)malloc(sizeof(Bone*) * childCount);
+
+        for (int i = 0; i < childCount; i++)
+        {
+            tmp[i] = chilren[i];
+        }
+
+        free(chilren);
+
+        childCount++;
+
+        chilren = (Bone**)malloc(sizeof(Bone*) * childCount);
+
+        for (int i = 0; i < childCount - 1; i++)
+        {
+            chilren[i] = tmp[i];
+        }
+        chilren[childCount - 1] = bone;
+
+        free(tmp);
+    }
+    __device__  void freeMemory()
+    {
+        free(chilren);
+
+        childCount = 0;
+    }
+
+
+    char* boneName;
+    Bone** chilren;
+    int childCount;
+    vec3 defaultTransform;
+    vec3 defaultRotation;
+    int* weightIndices;
+    double* weights;
+};
+
+
 struct KeyFrame {
 public:
     int frame;
