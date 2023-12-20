@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include "../shapes/MeshObject.h"
+#include <map>
 #pragma comment(lib, "libfbxsdk-md.lib")
 #pragma comment(lib, "libxml2-md.lib")
 #pragma comment(lib, "zlib-md.lib")
@@ -111,25 +112,36 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
 	int ClusterCount = pSkin->GetClusterCount();
 
 	Bone* boneList = (Bone*)malloc(sizeof(Bone) * ClusterCount);
+	std::map<const char*, int> boneIndex;
 
 	for (int i = 0; i < ClusterCount; i++)
 	{
 		fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
-		//fbxsdk::FbxAMatrix initMat =FbxAMatrix();
-		//pCluster->GetTransformLinkMatrix(initMat);
-
-		//ボーンのデフォルトのローカル座標を取得
+		//ボーンのデフォルトのグローバル座標を取得
 		FbxNode* node = pCluster->GetLink();
-		//printf("%s:\n", node->GetName());
-		//printf("local transform %f,%f,%f\n", node->LclTranslation.Get()[0], node->LclTranslation.Get()[1], node->LclTranslation.Get()[2]);
-		//printf("local rotation %f,%f,%f\n", node->LclRotation.Get()[0], node->LclRotation.Get()[1], node->LclRotation.Get()[2]);
-		// ここはグローバル座標が欲しいかも
-		vec3 defaultTransform = vec3(node->LclTranslation.Get()[0], node->LclTranslation.Get()[1], node->LclTranslation.Get()[2]);
-		vec3 defaultRotation = vec3(node->LclRotation.Get()[0], node->LclRotation.Get()[1], node->LclRotation.Get()[2]);
+		fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform();
+		vec3 defaultTransform = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
+		vec3 defaultRotation = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
+		
 		boneList[i] = Bone(node->GetName(), defaultTransform, defaultRotation,
 			defaultTransform, defaultRotation,
 			pCluster->GetControlPointIndices(), pCluster->GetControlPointWeights());
+		boneIndex[node->GetName()] = i;
+
+		boneList[i].defaultMatrix = node->EvaluateLocalTransform();
+
+		printf("%s\n", pCluster->GetName());
+		
+		
+		printf("     t = (%8.3f, %8.3f, %8.3f)\n     r = (%8.3f, %8.3f, %8.3f)\n",
+			amat.GetT()[0],
+			amat.GetT()[1],
+			amat.GetT()[2],
+			amat.GetR()[0],
+			amat.GetR()[1],
+			amat.GetR()[2]);
 	}
+
 }
 
 void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
@@ -150,15 +162,11 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
 
-
-
 	BonePoseData** animationData = (BonePoseData**)malloc(sizeof(BonePoseData*) * framecount);
 	for (int i = 0; i < framecount; i++) {
 		//指定フレームでの回転を取得？最初は回転だけ正しい
 		int frame = oneFrameValue * i;
 		animationData[i] = createBonePoseData(pSkin->GetCluster(0)->GetLink(),frame);
-		//親子関係取得
-		//printAllNode(pSkin->GetCluster(0)->GetLink(), 0);
 	}
 	
 }
