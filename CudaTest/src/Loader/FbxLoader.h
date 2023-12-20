@@ -25,8 +25,10 @@ BonePoseData* createBonePoseData(fbxsdk::FbxNode* object,int frame)
 {
 	BonePoseData** childList = (BonePoseData**)malloc(sizeof(BonePoseData) * object->GetChildCount());
 	printf("%s\n", object->GetName());
-	printf("local transform %f, %f, %f\n", object->EvaluateLocalTranslation(frame)[0], object->EvaluateLocalTranslation(frame)[1], object->EvaluateLocalTranslation(frame)[2]);
-	printf("local rotation  %f, %f, %f\n", object->EvaluateLocalRotation(frame)[0], object->EvaluateLocalRotation(frame)[1], object->EvaluateLocalRotation(frame)[2]);
+	// とりあえずGlobalを取得
+	fbxsdk::FbxAMatrix amat = object->EvaluateGlobalTransform(frame);
+	printf("global transform %f, %f, %f\n", amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
+	printf("global rotation  %f, %f, %f\n", amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
 
 	for (int i = 0; i < object->GetChildCount(); i++)
 	{
@@ -128,8 +130,6 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
 			pCluster->GetControlPointIndices(), pCluster->GetControlPointWeights());
 		boneIndex[node->GetName()] = i;
 
-		boneList[i].defaultMatrix = node->EvaluateLocalTransform();
-
 		printf("%s\n", pCluster->GetName());
 		
 		
@@ -144,7 +144,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
 
 }
 
-void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
+void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, BonePoseData** animationData) {
 	auto mesh = scene->GetSrcObject<FbxMesh>();
 	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
 
@@ -162,7 +162,8 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
 
-	BonePoseData** animationData = (BonePoseData**)malloc(sizeof(BonePoseData*) * framecount);
+	//animationData = (BonePoseData**)malloc(sizeof(BonePoseData*) * framecount);
+	cudaMallocManaged((void**)&animationData, sizeof(BonePoseData*) * framecount);
 	for (int i = 0; i < framecount; i++) {
 		//指定フレームでの回転を取得？最初は回転だけ正しい
 		int frame = oneFrameValue * i;
@@ -193,7 +194,9 @@ bool CreateFBXMeshData(const std::string& filePath, MeshData* data)
 	}
 
 	GetBoneData(importer, scene);
-	GetAnimationData(importer, scene);	
+	BonePoseData** animationData;
+	cudaMallocManaged((void**)&animationData, sizeof(BonePoseData**));
+	GetAnimationData(importer, scene,animationData);	
 
 	// マネージャー、シーンの破棄
 	importer->Destroy();
