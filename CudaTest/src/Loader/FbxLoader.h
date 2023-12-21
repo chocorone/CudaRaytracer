@@ -103,7 +103,7 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject*
 	return true;
 }
 
-void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
+void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObject* fbxData) {
 	auto mesh = scene->GetSrcObject<FbxMesh>();
 	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
 
@@ -114,7 +114,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
 
 	int ClusterCount = pSkin->GetClusterCount();
 
-	Bone* boneList = (Bone*)malloc(sizeof(Bone) * ClusterCount);
+	fbxData->boneList = (Bone*)malloc(sizeof(Bone) * ClusterCount);
 	std::map<const char*, int> boneIndex;
 
 	for (int i = 0; i < ClusterCount; i++)
@@ -126,7 +126,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene) {
 		vec3 defaultTransform = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
 		vec3 defaultRotation = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
 		
-		boneList[i] = Bone(node->GetName(), defaultTransform, defaultRotation,
+		fbxData->boneList[i] = Bone(node->GetName(), defaultTransform, defaultRotation,
 			defaultTransform, defaultRotation,
 			pCluster->GetControlPointIndices(), pCluster->GetControlPointWeights());
 		boneIndex[node->GetName()] = i;
@@ -163,8 +163,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, Bo
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
 
-	//animationData = (BonePoseData**)malloc(sizeof(BonePoseData*) * framecount);
-	cudaMallocManaged((void**)&animationData, sizeof(BonePoseData*) * framecount);
+	animationData = (BonePoseData**)malloc(sizeof(BonePoseData*) * framecount);
 	for (int i = 0; i < framecount; i++) {
 		//指定フレームでの回転を取得？最初は回転だけ正しい
 		int frame = oneFrameValue * i;
@@ -173,7 +172,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, Bo
 	
 }
 
-bool CreateFBXData(const std::string& filePath, FBXObject* fbxData)
+bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, BonePoseData** animationData)
 {
 	auto manager = FbxManager::Create();
 
@@ -194,9 +193,7 @@ bool CreateFBXData(const std::string& filePath, FBXObject* fbxData)
 		return false;
 	}
 
-	GetBoneData(importer, scene);
-	BonePoseData** animationData;
-	cudaMallocManaged((void**)&animationData, sizeof(BonePoseData**));
+	GetBoneData(importer, scene,fbxData);
 	GetAnimationData(importer, scene,animationData);	
 
 	// マネージャー、シーンの破棄

@@ -81,7 +81,9 @@ int main()
     FBXObject* fbxData = new FBXObject();
     checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
     pointerList->append((void**)fbxData);
-    CreateFBXData("./objects/HipHopDancing.fbx", fbxData);
+    BonePoseData** fbxAnimationData;
+    fbxAnimationData = (BonePoseData**)malloc(sizeof(BonePoseData**));
+    CreateFBXData("./objects/HipHopDancing.fbx", fbxData, fbxAnimationData);
     //CreateFBXMeshData("./objects/bunny2.fbx", meshData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
@@ -121,6 +123,7 @@ int main()
     checkCudaErrors(cudaFree(transformPointer));
     pointerList->freeMemory();
     animationData->freeMemory();
+    free(fbxAnimationData);
 
     
     cudaDeviceReset();
