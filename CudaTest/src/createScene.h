@@ -77,6 +77,24 @@ __global__ void add_mesh_withNormal(HitableList** list, MeshData* data, Transfor
     }
 }
 
+
+__global__ void add_mesh_withNormal(HitableList** list, FBXObject* data, TransformList** transformPointer)
+{
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+
+        int l = 0;
+        for (int i = 0; i < data->mesh->nTriangles; i++) {
+            vec3 idx = data->mesh->idxVertex[i];
+            vec3 v[3] = { data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])] };
+            Transform* transform = new Transform(vec3(0), vec3(0, 0, 0), vec3(1));
+            //(*transformPointer)->append(transform);//‚Æ‚è‚ ‚¦‚¸‚È‚µ‚Å
+            (*list)->append(new Triangle(v, data->mesh->normals[i], mat, false, transform, true));
+        }
+    }
+}
+
 __global__ void create_camera(Camera** camera, int nx, int ny,
     vec3 lookfrom, vec3 lookat, float dist_to_focus, float aperture, float vfov)
 {

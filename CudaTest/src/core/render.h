@@ -112,8 +112,8 @@ __global__ void render(vec3* colorBuffer, Hitable** world,Camera** camera,curand
         float u = float(x + curand_uniform(&(state[pixel_index]))) / float(nx);
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
-        col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
-        //col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        //col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
+        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
         //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);

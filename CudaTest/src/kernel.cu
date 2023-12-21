@@ -1,46 +1,5 @@
 ﻿#include "core/render.h"
 
-class CudaPointerList 
-{
-public:
-    CudaPointerList() { list = new void* (); list_size = 0; }
-    CudaPointerList(void** l, int n) { list = l; list_size = n; }
-    void append(void** data)
-    {
-        void** tmp = (void**)malloc(sizeof(void*) * list_size);
-
-        for (int i = 0; i < list_size; i++)
-        {
-            tmp[i] = list[i];
-        }
-
-        free(list);
-
-        list_size++;
-
-        list = (void**)malloc(sizeof(void*) * list_size);
-
-        for (int i = 0; i < list_size - 1; i++)
-        {
-            list[i] = tmp[i];
-        }
-        list[list_size - 1] = data;
-
-        free(tmp);
-    }
-    void freeMemory()
-    {
-        for (size_t i = 0; i < list_size; i++)
-        {
-            checkCudaErrors(cudaFree(list[i]));
-        }
-        free(list);
-        list_size = 0;
-    }
-    void** list;
-    int list_size;
-};
-
 
 class HostPointerList
 {
@@ -116,13 +75,13 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
     checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
-    BVHNode** bvh;
-    checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
+
     
     //FBXファイル読み込み
-    MeshData* meshData;
-    checkCudaErrors(cudaMallocManaged((void**)&meshData, sizeof(MeshData*)));
-    CreateFBXMeshData("./objects/HipHopDancing.fbx", meshData);
+    FBXObject* fbxData = new FBXObject();
+    checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
+    pointerList->append((void**)fbxData);
+    CreateFBXData("./objects/HipHopDancing.fbx", fbxData);
     //CreateFBXMeshData("./objects/bunny2.fbx", meshData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
@@ -133,13 +92,16 @@ int main()
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
     init_data << <1, 1 >> > (world, transformPointer);
     //BuildAnimatedSphere(world,animationData, transformPointer);
-    add_mesh_withNormal << <1, 1 >> > (world, meshData, transformPointer);
+    add_mesh_withNormal << <1, 1 >> > (world, fbxData, transformPointer);
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     printf("シーン作成完了\n");
 
     //BVHの作成
+    BVHNode** bvh;
+    checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
+    pointerList->append((void**)bvh);
     create_BVH << <1, 1 >> > (world, bvh, curand_state);
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
@@ -151,17 +113,14 @@ int main()
     renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvh, camera,animationData,transformPointer,blocks,threads,curand_state);
     
     //メモリ解放
-    animationData->freeMemory();
     checkCudaErrors(cudaDeviceSynchronize());
     destroy << <1, 1 >> > (world, camera, transformPointer);
-    destroy << <1, 1 >> > (meshData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(world));
     checkCudaErrors(cudaFree(camera));
     checkCudaErrors(cudaFree(transformPointer));
-    checkCudaErrors(cudaFree(meshData));
-    checkCudaErrors(cudaFree(bvh));
     pointerList->freeMemory();
+    animationData->freeMemory();
 
     
     cudaDeviceReset();

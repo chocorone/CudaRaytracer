@@ -57,11 +57,46 @@ __global__ void destroy(HitableList** world,
 
 }
 
-__global__ void destroy(MeshData* meshData) {
 
-    delete meshData->points;
-    delete meshData->normals;
-    delete meshData->idxVertex;
 
-}
+class CudaPointerList
+{
+public:
+    CudaPointerList() { list = new void* (); list_size = 0; }
+    CudaPointerList(void** l, int n) { list = l; list_size = n; }
+    void append(void** data)
+    {
+        void** tmp = (void**)malloc(sizeof(void*) * list_size);
 
+        for (int i = 0; i < list_size; i++)
+        {
+            tmp[i] = list[i];
+        }
+
+        free(list);
+
+        list_size++;
+
+        list = (void**)malloc(sizeof(void*) * list_size);
+
+        for (int i = 0; i < list_size - 1; i++)
+        {
+            list[i] = tmp[i];
+        }
+        list[list_size - 1] = data;
+
+        free(tmp);
+    }
+    void freeMemory()
+    {
+        for (size_t i = 0; i < list_size; i++)
+        {
+            printf("free %d\n", i);
+            checkCudaErrors(cudaFree(list[i]));
+        }
+        free(list);
+        list_size = 0;
+    }
+    void** list;
+    int list_size;
+};

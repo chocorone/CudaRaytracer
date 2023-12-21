@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include "../shapes/MeshObject.h"
+#include "../core/deviceManage.h"
 #include <map>
 #pragma comment(lib, "libfbxsdk-md.lib")
 #pragma comment(lib, "libxml2-md.lib")
@@ -42,7 +43,7 @@ BonePoseData* createBonePoseData(fbxsdk::FbxNode* object,int frame)
 	return poseData;
 }
 
-bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, MeshData* data) {
+bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject* fbxData) {
 	// 三角ポリゴンへのコンバート
 	FbxGeometryConverter geometryConverter(manager);
 	if (!geometryConverter.Triangulate(scene, true))
@@ -59,16 +60,16 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, MeshData* 
 	}
 	int nPoints, nTriangles;
 	nPoints = mesh->GetControlPointsCount();
-	data->nPoints = nPoints;
+	cudaMallocManaged((void**)&fbxData->mesh, nPoints * sizeof(MeshData));
+	fbxData->mesh->nPoints = nPoints;
 	nTriangles = mesh->GetPolygonCount();
-	data->nTriangles = nTriangles;
+	fbxData->mesh->nTriangles = nTriangles;
 
 	printf("データ数取得完了\n");
 
-	cudaMallocManaged((void**)&data->points, nPoints * sizeof(vec3));
-	cudaMallocManaged((void**)&data->idxVertex, nTriangles * sizeof(vec3));
-	cudaMallocManaged((void**)&data->normals, nTriangles * sizeof(vec3));
-
+	cudaMallocManaged((void**)&fbxData->mesh->points, nPoints * sizeof(vec3));
+	cudaMallocManaged((void**)&fbxData->mesh->idxVertex, nTriangles * sizeof(vec3));
+	cudaMallocManaged((void**)&fbxData->mesh->normals, nTriangles * sizeof(vec3));
 	cudaDeviceSynchronize();
 	cudaGetLastError();
 	cudaDeviceSynchronize();
@@ -80,7 +81,7 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, MeshData* 
 		auto point = mesh->GetControlPointAt(i);
 
 		vec3 vertex = vec3(point[0], point[1], point[2]);
-		data->points[i] = vertex;
+		fbxData->mesh->points[i] = vertex;
 	}
 	printf("頂点取得完了\n");
 
@@ -92,11 +93,11 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, MeshData* 
 		int one = mesh->GetPolygonVertex(polIndex, 0);
 		int two = mesh->GetPolygonVertex(polIndex, 1);
 		int three = mesh->GetPolygonVertex(polIndex, 2);
-		data->idxVertex[polIndex] = vec3(one, two, three);
+		fbxData->mesh->idxVertex[polIndex] = vec3(one, two, three);
 		//法線
 		FbxVector4 normalVec4;
 		mesh->GetPolygonVertexNormal(polIndex, 0, normalVec4);
-		data->normals[polIndex] = vec3(normalVec4[0], normalVec4[1], normalVec4[2]);
+		fbxData->mesh->normals[polIndex] = vec3(normalVec4[0], normalVec4[1], normalVec4[2]);
 	}
 	printf("ﾎﾟﾘｺﾞﾝ取得完了\n");
 	return true;
@@ -172,7 +173,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, Bo
 	
 }
 
-bool CreateFBXMeshData(const std::string& filePath, MeshData* data)
+bool CreateFBXData(const std::string& filePath, FBXObject* fbxData)
 {
 	auto manager = FbxManager::Create();
 
@@ -188,7 +189,7 @@ bool CreateFBXMeshData(const std::string& filePath, MeshData* data)
 	auto scene = FbxScene::Create(manager, "");
 	importer->Import(scene);
 
-	if (!GetMeshData(manager, scene, data)) {
+	if (!GetMeshData(manager, scene, fbxData)) {
 		printf("メッシュ情報の取得に失敗\n");
 		return false;
 	}
