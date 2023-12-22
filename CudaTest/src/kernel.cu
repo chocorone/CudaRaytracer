@@ -52,7 +52,7 @@ int main()
     const int max_depth = 8;
     const int samples = 4;
     const int beginFrame = 0;
-    const int endFrame = 0;
+    const int endFrame = 20;
 
     const int num_pixel = nx * ny;
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
@@ -78,10 +78,10 @@ int main()
 
     
     //FBXファイル読み込み
-    FBXObject* fbxData = new FBXObject();
+    FBXObject* fbxData = new FBXObject();//モデルデータ
     checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
     pointerList->append((void**)fbxData);
-    BonePoseData** fbxAnimationData;
+    BonePoseData** fbxAnimationData;//アニメーションデータ
     fbxAnimationData = (BonePoseData**)malloc(sizeof(BonePoseData**));
     CreateFBXData("./objects/HipHopDancing.fbx", fbxData, fbxAnimationData);
     //CreateFBXMeshData("./objects/bunny2.fbx", meshData);
@@ -89,12 +89,13 @@ int main()
     checkCudaErrors(cudaDeviceSynchronize());
 
     // オブジェクト、カメラの生成
-    AnimationDataList* animationData = new AnimationDataList();
     create_camera << <1, 1 >> > (camera, nx, ny, vec3(0,20,400), vec3(0, 20, 0), 10.0, 0.0, 60);
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
     init_data << <1, 1 >> > (world, transformPointer);
+    AnimationDataList* animationData = new AnimationDataList();
     //BuildAnimatedSphere(world,animationData, transformPointer);
-    add_mesh_withNormal << <1, 1 >> > (world, fbxData, transformPointer);
+    add_mesh_fromPoseData << <1, 1 >> > (world, fbxData, fbxAnimationData[0]); //メッシュの移動と作成
+    //add_mesh_withNormal << <1, 1 >> > (world, fbxData, transformPointer); //メッシュの作成
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
@@ -112,7 +113,7 @@ int main()
 
     //レンダリング
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, blocks, threads, curand_state);
-    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvh, camera,animationData,transformPointer,blocks,threads,curand_state);
+    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvh, camera,animationData,transformPointer, fbxAnimationData, fbxData,blocks,threads,curand_state);
     
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());

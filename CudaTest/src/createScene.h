@@ -65,8 +65,6 @@ __global__ void add_mesh_withNormal(HitableList** list, MeshData* data, Transfor
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
         Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
-
-        int l = 0;
         for (int i = 0; i < data->nTriangles; i++) {
             vec3 idx = data->idxVertex[i];
             vec3 v[3] = { data->points[int(idx[2])], data->points[int(idx[1])], data->points[int(idx[0])] };
@@ -78,13 +76,13 @@ __global__ void add_mesh_withNormal(HitableList** list, MeshData* data, Transfor
 }
 
 
+
+
 __global__ void add_mesh_withNormal(HitableList** list, FBXObject* data, TransformList** transformPointer)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
         Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
-
-        int l = 0;
         for (int i = 0; i < data->mesh->nTriangles; i++) {
             vec3 idx = data->mesh->idxVertex[i];
             vec3 v[3] = { data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])] };
@@ -94,6 +92,42 @@ __global__ void add_mesh_withNormal(HitableList** list, FBXObject* data, Transfo
         }
     }
 }
+
+__global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePoseData* pose) {
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        data->triangleData = (Triangle**)malloc(data->mesh->nTriangles*sizeof(Triangle*));
+        Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+        for (int i = 0; i < data->mesh->nTriangles; i++) {
+            vec3 idx = data->mesh->idxVertex[i];
+            vec3 v[3] = { data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])] };
+            Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), true);
+            data->triangleData[i] = triagnle;
+            (*list)->append(triagnle);
+        }
+    }
+}
+
+__global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData* pose) {
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        //vec3* newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
+        //CalcFBXVertexPos(data,pose,newPos);
+
+        for (int i = 0; i < data->mesh->nTriangles; i++) {
+            //vec3 idx = data->mesh->idxVertex[i];
+            /*vec3 v[3] = {data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])]};
+            for (int vi = 0; vi < 3; vi++) {
+                data->triangleData[i]->vertices[vi] = v[vi];
+            }*/
+            Lambertian* mat = (Lambertian*)data->triangleData[i]->material;
+            ConstantTexture* tex = (ConstantTexture*)mat->albedo;
+            tex->color = vec3(tex->color.r(), tex->color.g() + 0.1f>1?1: tex->color.g() + 0.1f, tex->color.b() + 0.1f > 1 ? 1 : tex->color.b() + 0.1f);
+        }
+    }
+}
+
+
 
 __global__ void create_camera(Camera** camera, int nx, int ny,
     vec3 lookfrom, vec3 lookat, float dist_to_focus, float aperture, float vfov)

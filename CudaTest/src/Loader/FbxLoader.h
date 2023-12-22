@@ -25,12 +25,12 @@ void printAllNode(fbxsdk::FbxNode* object,int index)
 BonePoseData* createBonePoseData(fbxsdk::FbxNode* object,int frame) 
 {
 	BonePoseData** childList = (BonePoseData**)malloc(sizeof(BonePoseData) * object->GetChildCount());
-	printf("%s\n", object->GetName());
+	//printf("%s\n", object->GetName());
 	// ‚Æ‚è‚ ‚¦‚¸Global‚ðŽæ“¾
 	fbxsdk::FbxAMatrix amat = object->EvaluateGlobalTransform(frame);
-	printf("global transform %f, %f, %f\n", amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
-	printf("global rotation  %f, %f, %f\n", amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
-
+	//printf("global transform %f, %f, %f\n", amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
+	//printf("global rotation  %f, %f, %f\n", amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
+	
 	for (int i = 0; i < object->GetChildCount(); i++)
 	{
 		childList[i]=createBonePoseData(object->GetChild(i),frame);

@@ -44,6 +44,7 @@ public:
 class FBXObject {
 public:
 	MeshData* mesh;
+    Triangle** triangleData;
 	Bone* boneList;
 };
 
@@ -71,6 +72,9 @@ public:
 
     int childCount;
     BonePoseData** childData;
+
+    int boneIndex;
+
     vec3 nowLclTransforom;
     vec3 nowLclRatation;
 };

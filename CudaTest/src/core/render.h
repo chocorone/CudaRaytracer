@@ -129,7 +129,8 @@ __global__ void SetTransform(Transform transform, TransformList** transformPoint
 }
 
 void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer,
+    Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer, 
+    BonePoseData** fbxAnimationData, FBXObject* fbxData,
     dim3 blocks, dim3 threads, curandState* curand_state) {
 
     // 画素のメモリ確保
@@ -142,7 +143,6 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
     vec3* d_colorBuffer;
     cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
     cudaMemcpy(d_colorBuffer, colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
-
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
@@ -152,6 +152,12 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
             SetTransform << <1, 1 >> > (animationData->list[i]->Get_NextTransform(frameIndex), transformPointer, i);
             animationData->list[i]->SetNext(frameIndex);
         }*/
+
+        //メッシュの位置の更新
+        update_mesh_fromPoseData << <1, 1 >> > (fbxData, fbxAnimationData[0]);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
 
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
@@ -203,43 +209,4 @@ void BuildAnimatedSphere(HitableList** world, AnimationDataList* animationData, 
     animationData->append(new AnimationData(keyFrames3));
 }
 
-
-/*
-int BuildBVHTest(Hitable** world, Hitable** obj_list, Camera** camera, curandState* state, int nx, int ny) {
-    vec3* points;
-    vec3* idxVertex;
-
-    checkCudaErrors(cudaMallocManaged((void**)&points, 2600 * sizeof(vec3)));
-    checkCudaErrors(cudaMallocManaged((void**)&idxVertex, 5000 * sizeof(vec3)));
-
-    int nPoints, nTriangles;
-    parseObjByName("./objects/small_bunny.obj", points, idxVertex, nPoints, nTriangles);
-
-    std::cout << "# of points: " << nPoints << std::endl;
-    std::cout << "# of triangles: " << nTriangles << std::endl;
-
-    // scale
-    for (int i = 0; i < nPoints; i++) { points[i] *= 100.0; }
-    for (int i = 0; i < nPoints; i++) { std::cout << points[i] << std::endl; }
-
-    int obj_cnt = nTriangles + 10;
-    printf("obj_cnt %d\n", obj_cnt);
-    checkCudaErrors(cudaMallocManaged((void**)&obj_list, obj_cnt * sizeof(Hitable*)));
-
-
-    //create_camera_for_cornelbox << <1, 1 >> > (camera, nx, ny);
-    //bunny_inside_cornell_box << <1, 1 >> > (world, obj_list, points,idxVertex, nPoints, nTriangles, state);
-
-    create_camera_origin << <1, 1 >> > (camera, nx, ny);
-    draw_one_mesh << <1, 1 >> > (world, obj_list, points, idxVertex, nPoints, nTriangles, state);
-
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-
-    printf("シーン作成完了\n");
-
-    return obj_cnt;
-}
-*/
 
