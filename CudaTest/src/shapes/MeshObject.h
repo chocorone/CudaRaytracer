@@ -13,14 +13,13 @@ public:
 class Bone {
 public:
     __host__ __device__ Bone() {}
-    __host__ __device__ Bone(const char* name, vec3 defaultT, vec3 defaultR, vec3 t, vec3 r, int* indices, double* weight) {
+    __host__ __device__ Bone(const char* name, vec3 defaultT, vec3 defaultR, vec3 t, vec3 r,int wcount) {
         boneName = name;
         defaultTransform = defaultT;
         defaultRotation = defaultR;
         nowTransform = t;
         nowRotation = r;
-        weightIndices = indices;
-        weights = weight;
+        weightCount = wcount;
     }
 
     __host__ __device__ vec3 GetDiffTransform() {
@@ -37,6 +36,7 @@ public:
     vec3 nowTransform;
     vec3 nowRotation;
 
+    int weightCount;
     int* weightIndices;
     double* weights;
 };
@@ -55,8 +55,8 @@ public:
     __host__ __device__ BonePoseData() {}
     int boneCount;
 
-    vec3* nowLclTransforom;
-    vec3* nowLclRatation;
+    vec3* nowTransforom;
+    vec3* nowRatation;
 };
 
 class FBXAnimationData {

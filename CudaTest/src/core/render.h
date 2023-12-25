@@ -153,7 +153,7 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         }*/
 
         //メッシュの位置の更新
-        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[0], frameIndex);
+        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());

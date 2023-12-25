@@ -75,9 +75,6 @@ __global__ void add_mesh_withNormal(HitableList** list, MeshData* data, Transfor
     }
 }
 
-
-
-
 __global__ void add_mesh_withNormal(HitableList** list, FBXObject* data)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
@@ -108,21 +105,45 @@ __global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePo
     }
 }
 
+__device__ void CalcFBXVertexPos(FBXObject* data, BonePoseData pose,vec3* newPos) 
+{
+    for (int i = 0; i < data->mesh->nPoints; i++) {
+        newPos[i] = data->mesh->points[i];
+    }
+
+    for (int boneIndex = 0; boneIndex < data->boneCount; boneIndex++)
+    {
+        for (int weightIndex = 0; weightIndex < data->boneList[boneIndex].weightCount; weightIndex++)
+        {
+            int vertexIndex = data->boneList[boneIndex].weightIndices[weightIndex];
+            double weight = data->boneList[boneIndex].weights[weightIndex];
+            // ボーンのデフォルトの位置を中心にウェイト分だけ頂点を回転
+            const vec3 verticesBasedOrigin = data->mesh->points[vertexIndex] - data->boneList[boneIndex].defaultTransform;
+            const vec3 boneRotateDiff = pose.nowRatation[boneIndex] - data->boneList[boneIndex].defaultRotation;
+            const vec3 rotatedPosBasedOrigin = rotate(verticesBasedOrigin, boneRotateDiff * weight);
+            const vec3 rotatedPos = rotatedPosBasedOrigin + data->boneList[boneIndex].defaultTransform;
+            // ウェイト分だけボーンと同様に移動
+            const vec3 movedPos = rotatedPos + (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
+            //それぞれのボーンの差分を加算
+            newPos[vertexIndex] += (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
+        }
+    }
+}
+
 __global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData pose,float f) {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        //vec3* newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
-        //CalcFBXVertexPos(data,pose,newPos);
+        vec3* newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
+        CalcFBXVertexPos(data,pose,newPos);
 
         for (int i = 0; i < data->mesh->nTriangles; i++) {
-            //vec3 idx = data->mesh->idxVertex[i];
-            /*vec3 v[3] = {data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])]};
-            for (int vi = 0; vi < 3; vi++) {
-                data->triangleData[i]->vertices[vi] = v[vi];
-            }*/
-            Lambertian* mat = (Lambertian*)data->triangleData[i]->material;
-            ConstantTexture* tex = (ConstantTexture*)mat->albedo;
-            tex->color = vec3(tex->color.r(), tex->color.g(), f/10);
+            vec3 idx = data->mesh->idxVertex[i];
+            vec3 v[3] = { newPos[int(idx[2])], newPos[int(idx[1])], newPos[int(idx[0])]};
+            data->triangleData[i]->SetVertices(v);
+            
+            //Lambertian* mat = (Lambertian*)data->triangleData[i]->material;
+            //ConstantTexture* tex = (ConstantTexture*)mat->albedo;
+            //tex->color = vec3(tex->color.r(), tex->color.g(), f/10);
         }
         printf("update %f\n", f);
     }

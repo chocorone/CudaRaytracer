@@ -51,8 +51,6 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject*
 	cudaMallocManaged((void**)&fbxData->mesh->idxVertex, nTriangles * sizeof(vec3));
 	cudaMallocManaged((void**)&fbxData->mesh->normals, nTriangles * sizeof(vec3));
 	cudaDeviceSynchronize();
-	cudaGetLastError();
-	cudaDeviceSynchronize();
 
 	// 頂点座標情報のリストを生成
 	for (int i = 0; i < nPoints; i++)
@@ -95,8 +93,8 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 	int ClusterCount = pSkin->GetClusterCount();
 
 	fbxData->boneCount = ClusterCount;
-	fbxData->boneList = (Bone*)malloc(sizeof(Bone) * ClusterCount);
-	std::map<const char*, int> boneIndex;
+	cudaMallocManaged((void**)&fbxData->boneList, sizeof(Bone) * ClusterCount);
+	cudaDeviceSynchronize();
 
 	for (int i = 0; i < ClusterCount; i++)
 	{
@@ -108,9 +106,17 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 		vec3 defaultRotation = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
 		
 		fbxData->boneList[i] = Bone(node->GetName(), defaultTransform, defaultRotation,
-			defaultTransform, defaultRotation,
-			pCluster->GetControlPointIndices(), pCluster->GetControlPointWeights());
-		boneIndex[node->GetName()] = i;
+			defaultTransform, defaultRotation,pCluster->GetControlPointIndicesCount());
+
+		cudaMallocManaged((void**)&fbxData->boneList[i].weightIndices, sizeof(int) * pCluster->GetControlPointIndicesCount());
+		cudaMallocManaged((void**)&fbxData->boneList[i].weights, sizeof(double) * pCluster->GetControlPointIndicesCount());
+		cudaDeviceSynchronize();
+		for (int weightIndex = 0; weightIndex < pCluster->GetControlPointIndicesCount(); weightIndex++) 
+		{
+			fbxData->boneList[i].weightIndices[weightIndex] = pCluster->GetControlPointIndices()[weightIndex];
+			fbxData->boneList[i].weights[weightIndex] = pCluster->GetControlPointWeights()[weightIndex];
+			
+		}
 
 		printf("%s\n", pCluster->GetName());
 		
@@ -150,16 +156,17 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 	{
 		BonePoseData pose = BonePoseData();
 		pose.boneCount = fbxData->boneCount;
-		pose.nowLclTransforom = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
-		pose.nowLclRatation = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
+		cudaMallocManaged((void**)&pose.nowTransforom, sizeof(vec3) * fbxData->boneCount);
+		cudaMallocManaged((void**)&pose.nowRatation, sizeof(vec3) * fbxData->boneCount);
+		cudaDeviceSynchronize();
 
 		for (int i = 0; i < fbxData->boneCount; i++)
 		{
 			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
 			FbxNode* node = pCluster->GetLink();
-			fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform(frameIndex);
-			pose.nowLclTransforom[i] = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
-			pose.nowLclRatation[i] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
+			fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform(frameIndex* oneFrameValue);
+			pose.nowTransforom[i] = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
+			pose.nowRatation[i] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
 		}
 		animationData->animation[frameIndex] = pose;
 		printf("%dフレーム目読み込み完了\n", frameIndex);

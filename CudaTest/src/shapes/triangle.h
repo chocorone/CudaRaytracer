@@ -37,6 +37,13 @@ public:
         float t1,
         AABB& box) const;
 
+    __device__ void SetVertices(vec3 vs[3]) {
+        for (int vi = 0; vi < 3; vi++) 
+        {
+            vertices[vi] = vs[vi];
+        }
+    }
+
     const float EPSILON;
 
     vec3 vertices[3];
