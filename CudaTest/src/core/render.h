@@ -129,8 +129,7 @@ __global__ void SetTransform(Transform transform, TransformList** transformPoint
 }
 
 void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer, 
-    BonePoseData** fbxAnimationData, FBXObject* fbxData,
+    Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer, FBXAnimationData* fbxAnimationData,
     dim3 blocks, dim3 threads, curandState* curand_state) {
 
     // 画素のメモリ確保
@@ -154,7 +153,7 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         }*/
 
         //メッシュの位置の更新
-        update_mesh_fromPoseData << <1, 1 >> > (fbxData, fbxAnimationData[0]);
+        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[0], frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());

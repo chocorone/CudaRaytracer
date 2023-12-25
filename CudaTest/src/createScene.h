@@ -78,7 +78,7 @@ __global__ void add_mesh_withNormal(HitableList** list, MeshData* data, Transfor
 
 
 
-__global__ void add_mesh_withNormal(HitableList** list, FBXObject* data, TransformList** transformPointer)
+__global__ void add_mesh_withNormal(HitableList** list, FBXObject* data)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
@@ -93,7 +93,7 @@ __global__ void add_mesh_withNormal(HitableList** list, FBXObject* data, Transfo
     }
 }
 
-__global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePoseData* pose) {
+__global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePoseData pose) {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
         data->triangleData = (Triangle**)malloc(data->mesh->nTriangles*sizeof(Triangle*));
@@ -108,7 +108,7 @@ __global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePo
     }
 }
 
-__global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData* pose) {
+__global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData pose,float f) {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
         //vec3* newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
@@ -122,8 +122,9 @@ __global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData* pose) {
             }*/
             Lambertian* mat = (Lambertian*)data->triangleData[i]->material;
             ConstantTexture* tex = (ConstantTexture*)mat->albedo;
-            tex->color = vec3(tex->color.r(), tex->color.g() + 0.1f>1?1: tex->color.g() + 0.1f, tex->color.b() + 0.1f > 1 ? 1 : tex->color.b() + 0.1f);
+            tex->color = vec3(tex->color.r(), tex->color.g(), f/10);
         }
+        printf("update %f\n", f);
     }
 }
 

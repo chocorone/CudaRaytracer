@@ -22,26 +22,6 @@ void printAllNode(fbxsdk::FbxNode* object,int index)
 	}
 }
 
-BonePoseData* createBonePoseData(fbxsdk::FbxNode* object,int frame) 
-{
-	BonePoseData** childList = (BonePoseData**)malloc(sizeof(BonePoseData) * object->GetChildCount());
-	//printf("%s\n", object->GetName());
-	// とりあえずGlobalを取得
-	fbxsdk::FbxAMatrix amat = object->EvaluateGlobalTransform(frame);
-	//printf("global transform %f, %f, %f\n", amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
-	//printf("global rotation  %f, %f, %f\n", amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
-	
-	for (int i = 0; i < object->GetChildCount(); i++)
-	{
-		childList[i]=createBonePoseData(object->GetChild(i),frame);
-	}
-
-	vec3 transform = vec3(object->EvaluateLocalTranslation(frame)[0], object->EvaluateLocalTranslation(frame)[1], object->EvaluateLocalTranslation(frame)[2]);
-	vec3 rotation = vec3(object->EvaluateLocalRotation(frame)[0], object->EvaluateLocalRotation(frame)[1], object->EvaluateLocalRotation(frame)[2]);
-	BonePoseData* poseData = new BonePoseData(transform,rotation);
-	poseData->ResisterChild(childList, object->GetChildCount());
-	return poseData;
-}
 
 bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject* fbxData) {
 	// 三角ポリゴンへのコンバート
@@ -114,6 +94,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 
 	int ClusterCount = pSkin->GetClusterCount();
 
+	fbxData->boneCount = ClusterCount;
 	fbxData->boneList = (Bone*)malloc(sizeof(Bone) * ClusterCount);
 	std::map<const char*, int> boneIndex;
 
@@ -145,15 +126,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 
 }
 
-void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, BonePoseData** animationData) {
-	auto mesh = scene->GetSrcObject<FbxMesh>();
-	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
-
-	if (mesh->GetDeformer(0)->GetDeformerType() != fbxsdk::FbxDeformer::EDeformerType::eSkin) {
-		printf("デフォーマーの種類が異なります\n");
-		return;
-	}
-
+void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXAnimationData* animationData,FBXObject* fbxData) {
 	//アニメーション情報取得
 	int animStackCount = importer->GetAnimStackCount();
 	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
@@ -162,17 +135,38 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, Bo
 	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames60);
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
-
-	animationData = (BonePoseData**)malloc(sizeof(BonePoseData*) * framecount);
-	for (int i = 0; i < framecount; i++) {
-		//指定フレームでの回転を取得？最初は回転だけ正しい
-		int frame = oneFrameValue * i;
-		animationData[i] = createBonePoseData(pSkin->GetCluster(0)->GetLink(),frame);
-	}
 	
+	auto mesh = scene->GetSrcObject<FbxMesh>();
+	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
+
+	if (mesh->GetDeformer(0)->GetDeformerType() != fbxsdk::FbxDeformer::EDeformerType::eSkin) {
+		printf("デフォーマーの種類が異なります\n");
+		return;
+	}
+
+	animationData->frameCount = framecount;
+	animationData->animation = (BonePoseData*)malloc(sizeof(BonePoseData) * framecount);
+	for (int frameIndex = 0; frameIndex < framecount; frameIndex++) 
+	{
+		BonePoseData pose = BonePoseData();
+		pose.boneCount = fbxData->boneCount;
+		pose.nowLclTransforom = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
+		pose.nowLclRatation = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
+
+		for (int i = 0; i < fbxData->boneCount; i++)
+		{
+			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
+			FbxNode* node = pCluster->GetLink();
+			fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform(frameIndex);
+			pose.nowLclTransforom[i] = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
+			pose.nowLclRatation[i] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
+		}
+		animationData->animation[frameIndex] = pose;
+		printf("%dフレーム目読み込み完了\n", frameIndex);
+	}	
 }
 
-bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, BonePoseData** animationData)
+bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* animationData)
 {
 	auto manager = FbxManager::Create();
 
@@ -194,7 +188,8 @@ bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, BonePoseData
 	}
 
 	GetBoneData(importer, scene,fbxData);
-	GetAnimationData(importer, scene,animationData);	
+	animationData->object = fbxData;
+	GetAnimationData(importer, scene,animationData,fbxData);	
 
 	// マネージャー、シーンの破棄
 	importer->Destroy();

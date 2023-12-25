@@ -46,35 +46,23 @@ public:
 	MeshData* mesh;
     Triangle** triangleData;
 	Bone* boneList;
+    int boneCount;
 };
 
 
 class BonePoseData {
 public:
     __host__ __device__ BonePoseData() {}
-    __host__ __device__ BonePoseData(vec3 t, vec3 r) {
-        nowLclTransforom = t;
-        nowLclRatation = r;
-        childData = new BonePoseData * (); childCount = 0;
-    }
+    int boneCount;
 
-    __host__ __device__ void ResisterChild(BonePoseData** children, int count) {
-        childData = children;
-        childCount = count;
-    }
+    vec3* nowLclTransforom;
+    vec3* nowLclRatation;
+};
 
-    __host__ __device__ void freeMemory()
-    {
-        free(childData);
-
-        childCount = 0;
-    }
-
-    int childCount;
-    BonePoseData** childData;
-
-    int boneIndex;
-
-    vec3 nowLclTransforom;
-    vec3 nowLclRatation;
+class FBXAnimationData {
+public:
+    __host__ __device__ FBXAnimationData() {}
+    int frameCount;
+    FBXObject* object;
+    BonePoseData* animation;
 };
