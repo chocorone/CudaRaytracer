@@ -68,42 +68,35 @@ int main()
     SetCurandState(curand_state, nx, ny, blocks, threads);
     pointerList->append((void**)curand_state);
 
-    //シーン保存用の変数のメモリ確保
-    HitableList** world;
+    //カメラ作成
     Camera** camera;
+    checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
+    pointerList->append((void**)camera);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 20, 400), vec3(0, 20, 0), 10.0, 0.0, 60);
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
+
+    //あとで修正
+    HitableList** world;
     TransformList** transformPointer;
     checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
-    checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
     checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
+    init_data << <1, 1 >> > (world, transformPointer);
+    AnimationDataList* animationData = new AnimationDataList();
+    //BuildAnimatedSphere(world,animationData, transformPointer);
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 
     
-    //FBXファイル読み込み
+    //FBXオブジェクト作成
     FBXObject* fbxData = new FBXObject();//モデルデータ
     checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
     pointerList->append((void**)fbxData);
     FBXAnimationData* fbxAnimationData;//アニメーションデータ
     fbxAnimationData = (FBXAnimationData*)malloc(sizeof(FBXAnimationData*));
     CreateFBXData("./objects/human_light.fbx", fbxData, fbxAnimationData);
-    //CreateFBXData("./objects/HipHopDancing.fbx", fbxData, fbxAnimationData);
-    //CreateFBXMeshData("./objects/bunny2.fbx", meshData);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-
-    // オブジェクト、カメラの生成
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 20, 400), vec3(0, 20, 0), 10.0, 0.0, 60);
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0,20,400), vec3(0, 20, 0), 10.0, 0.0, 60);
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
-    init_data << <1, 1 >> > (world, transformPointer);
-    AnimationDataList* animationData = new AnimationDataList();
-    //BuildAnimatedSphere(world,animationData, transformPointer);
     add_mesh_fromPoseData << <1, 1 >> > (world, fbxData, fbxAnimationData->animation[0]); //メッシュの移動と作成
-    //add_mesh_withNormal << <1, 1 >> > (world, fbxData); //メッシュの作成
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-    printf("シーン作成完了\n");
-
-    //BVHの作成
     BVHNode** bvh;
     checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
     pointerList->append((void**)bvh);
@@ -119,10 +112,9 @@ int main()
     
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());
-    destroy << <1, 1 >> > (world, camera, transformPointer);
+    //destroy << <1, 1 >> > (world, camera, transformPointer);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(world));
-    checkCudaErrors(cudaFree(camera));
     checkCudaErrors(cudaFree(transformPointer));
     pointerList->freeMemory();
     free(pointerList);
