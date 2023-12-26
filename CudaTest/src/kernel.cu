@@ -71,10 +71,7 @@ int main()
     //カメラ作成
     Camera** camera;
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
-    pointerList->append((void**)camera);
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 20, 400), vec3(0, 20, 0), 10.0, 0.0, 60);
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
-
+    init_camera(camera, pointerList,nx,ny);
 
     //オブジェクトの作成
     TransformList** transformPointer;

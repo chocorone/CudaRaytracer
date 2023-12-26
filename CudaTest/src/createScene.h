@@ -16,15 +16,20 @@
 #include "material/material.h"
 #include "hitable/animationData.h"
 #include "shapes/MeshObject.h"
+#include "core/deviceManage.h"
 
 __device__ float rand(curandState* state) {
     return float(curand_uniform(state));
 }
 
-__global__ void init_data(HitableList** list, TransformList** transformPointer)
+__global__ void init_transformList(TransformList** transformPointer)
+{
+    *transformPointer = new TransformList();
+}
+
+__global__ void init_List(HitableList** list)
 {
     *list = new HitableList();
-    *transformPointer = new TransformList();
 }
 
 //BVH�̍쐬
@@ -46,12 +51,7 @@ __global__ void add_object(HitableList** list,  TransformList** transformPointer
 
         Texture* checker = new CheckerTexture(new ConstantTexture(vec3(0.2, 0.3, 0.1)),
             new ConstantTexture(vec3(0.9, 0.9, 0.9)));
-        //(*list)->append(new Sphere(new Transform(vec3(-10,-10, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.8, 0.1, 0.1)))));
-        //(*list)->append(new Sphere(new Transform(), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.8, 0.1)))));
-        //(*list)->append(new Sphere(new Transform(vec3(5, 5, 0), vec3(0), vec3(1)), 1, new Lambertian(new ConstantTexture(vec3(0.1, 0.1, 0.8)))));
-       
-
-        /*Transform* transform1 = new Transform(vec3(0, 1, 0), vec3(0), vec3(1));
+        Transform* transform1 = new Transform(vec3(0, 1, 0), vec3(0), vec3(1));
         Transform* transform2 = new Transform(vec3(-4, 1, 0), vec3(0), vec3(1));
         Transform* transform3 = new Transform(vec3(4, 1, 0), vec3(0), vec3(1));
 
@@ -61,7 +61,7 @@ __global__ void add_object(HitableList** list,  TransformList** transformPointer
 
         (*transformPointer)->append(transform1);
         (*transformPointer)->append(transform2);
-        (*transformPointer)->append(transform3);*/
+        (*transformPointer)->append(transform3);
     }
 }
 
@@ -169,3 +169,8 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
     }
 }
 
+void init_camera(Camera** camera,CudaPointerList* pointerList,int nx,int ny) {
+    pointerList->append((void**)camera);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 20, 400), vec3(0, 20, 0), 10.0, 0.0, 60);
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
+}
