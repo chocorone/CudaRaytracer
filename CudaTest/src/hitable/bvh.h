@@ -137,8 +137,11 @@ __device__ void BVHNode::UpdateBVH()
         // std::cerr << "no bounding box in BVHNode constructor \n";
     }
     //拡大
-    box = surrounding_box(box_left, box);
-    box = surrounding_box(box_right, box);
+    //box = surrounding_box(box_left, box);
+    //box = surrounding_box(box_right, box);
+    
+    // 再フィット
+    box = surrounding_box(box_right, box_left);
 }
 
 __device__ bool BVHNode::collision_detection(const Ray& r,

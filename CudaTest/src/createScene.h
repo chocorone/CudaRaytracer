@@ -16,16 +16,21 @@
 #include "material/material.h"
 #include "hitable/animationData.h"
 #include "shapes/MeshObject.h"
+#include "core/deviceManage.h"
 
 __device__ float rand(curandState* state) {
     return float(curand_uniform(state));
 }
 
-__global__ void init_data(HitableList** list, TransformList** transformPointer)
+__global__ void create_TransformList(TransformList** transformPointer)
 {
-    *list = new HitableList();
     *transformPointer = new TransformList();
 }
+__global__ void create_List(HitableList** list)
+{
+    *list = new HitableList();
+}
+
 
 //BVH�̍쐬
 __global__ void create_BVH(HitableList** list, BVHNode** bvh,curandState* state) {
@@ -169,3 +174,26 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
     }
 }
 
+void init_camera(Camera** camera, int nx, int ny,CudaPointerList* pointerList) {
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 20, 400), vec3(0, 20, 0), 10.0, 0.0, 60);
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
+    pointerList->append((void**)camera);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+}
+
+void init_TransformList(TransformList** transformPointer, CudaPointerList* pointerList) {
+    create_TransformList << <1, 1 >> > (transformPointer);
+    pointerList->append((void**)transformPointer);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+}
+
+void init_List(HitableList** list, CudaPointerList* pointerList)
+{
+    create_List << <1, 1 >> > (list);
+    pointerList->append((void**)list);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+}

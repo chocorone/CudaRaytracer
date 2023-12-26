@@ -52,7 +52,7 @@ int main()
     const int max_depth = 8;
     const int samples = 4;
     const int beginFrame = 0;
-    const int endFrame = 90;
+    const int endFrame = 30;
 
     const int num_pixel = nx * ny;
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
@@ -68,14 +68,20 @@ int main()
     SetCurandState(curand_state, nx, ny, blocks, threads);
     pointerList->append((void**)curand_state);
 
-    //シーン保存用の変数のメモリ確保
-    HitableList** world;
+    //カメラ作成
     Camera** camera;
-    TransformList** transformPointer;
-    checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
-    checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
+    init_camera(camera, nx, ny, pointerList);
 
+    //オブジェクト作成
+    TransformList** transformPointer;
+    checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
+    init_TransformList(transformPointer, pointerList);
+
+    //あとで整理
+    HitableList** world;
+    checkCudaErrors(cudaMallocManaged((void**)&world, sizeof(HitableList*)));
+    init_List(world, pointerList);
     
     //FBXファイル読み込み
     FBXObject* fbxData = new FBXObject();//モデルデータ
@@ -89,11 +95,8 @@ int main()
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    // オブジェクト、カメラの生成
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 20, 400), vec3(0, 20, 0), 10.0, 0.0, 60);
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0,20,400), vec3(0, 20, 0), 10.0, 0.0, 60);
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
-    init_data << <1, 1 >> > (world, transformPointer);
+    // オブジェクトの生成
+    
     AnimationDataList* animationData = new AnimationDataList();
     //BuildAnimatedSphere(world,animationData, transformPointer);
     add_mesh_fromPoseData << <1, 1 >> > (world, fbxData, fbxAnimationData->animation[0]); //メッシュの移動と作成
@@ -119,13 +122,10 @@ int main()
     
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());
-    destroy << <1, 1 >> > (world, camera, transformPointer);
-    checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(world));
-    checkCudaErrors(cudaFree(camera));
     checkCudaErrors(cudaFree(transformPointer));
     pointerList->freeMemory();
-    free(pointerList);
+    checkCudaErrors(cudaGetLastError());
     free(animationData);
     free(fbxAnimationData);
 
