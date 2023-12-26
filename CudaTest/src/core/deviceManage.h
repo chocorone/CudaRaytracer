@@ -16,43 +16,21 @@ void check_cuda(cudaError_t result,
     }
 }
 
-void ChangeHeapSize(size_t heapSize) {
-    cudaDeviceSetLimit(cudaLimitMallocHeapSize, heapSize);
-    cudaDeviceGetLimit(&heapSize, cudaLimitMallocHeapSize);
-    printf("Heap Size=%ld\n", heapSize);
+
+__global__ void destroy(Camera** camera) {
+
+    delete* camera;
 
 }
-
-void ChangeStackSize(size_t stackSize){
-    cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
-    cudaDeviceGetLimit(&stackSize, cudaLimitStackSize);
-    printf("Stack Size=%ld\n", stackSize);
-}
-
-__global__ void random_init(int nx,
-    int ny,
-    curandState* state) {
-    int x = threadIdx.x + blockIdx.x * blockDim.x;
-    int y = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((x >= nx) || (y >= ny)) return;
-    int pixel_index = y * nx + x;
-    curand_init(0, pixel_index, 0, &state[pixel_index]);
-}
-
-void SetCurandState(curandState* curand_state,int nx,int ny,dim3 blocks,dim3 threads) {
-    // ‰æ‘f‚²‚Æ‚É—”‚ğ‰Šú‰»
-    random_init << <blocks, threads >> > (nx, ny, curand_state);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-}
-
-__global__ void destroy(HitableList** world,
-    Camera** camera, TransformList** transformPointer) {
+__global__ void destroy(HitableList** world) {
 
     (*world)->freeMemory();
-    (*transformPointer)->freeMemory();
     delete* world;
-    delete* camera;
+
+}
+__global__ void destroy(TransformList** transformPointer) {
+
+    (*transformPointer)->freeMemory();
     delete* transformPointer;
 
 }
@@ -89,10 +67,34 @@ public:
     }
     void freeMemory()
     {
-        for (size_t i = 0; i < list_size; i++)
+        for (int i = 0; i < list_size; i++)
         {
             printf("free %d\n", i);
+
+            if (typeid(list[i]) == typeid(HitableList**)) 
+            {
+                destroy << <1, 1 >> > ((HitableList**)list[i]);
+                checkCudaErrors(cudaDeviceSynchronize());
+                checkCudaErrors(cudaGetLastError());
+            }
+            if (typeid(list[i]) == typeid(TransformList**))
+            {
+                destroy << <1, 1 >> > ((TransformList**)list[i]);
+                checkCudaErrors(cudaDeviceSynchronize());
+                checkCudaErrors(cudaGetLastError());
+            }
+
+            if (typeid(list[i]) == typeid(Camera**))
+            {
+                destroy << <1, 1 >> > ((Camera**)list[i]);
+                checkCudaErrors(cudaDeviceSynchronize());
+                checkCudaErrors(cudaGetLastError());
+            }
+
             checkCudaErrors(cudaFree(list[i]));
+            checkCudaErrors(cudaDeviceSynchronize());
+            checkCudaErrors(cudaGetLastError());
+
         }
         free(list);
         list_size = 0;
@@ -100,3 +102,47 @@ public:
     void** list;
     int list_size;
 };
+
+
+void ChangeHeapSize(size_t heapSize) {
+    cudaDeviceSetLimit(cudaLimitMallocHeapSize, heapSize);
+    cudaDeviceGetLimit(&heapSize, cudaLimitMallocHeapSize);
+    printf("Heap Size=%ld\n", heapSize);
+
+}
+
+void ChangeStackSize(size_t stackSize){
+    cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
+    cudaDeviceGetLimit(&stackSize, cudaLimitStackSize);
+    printf("Stack Size=%ld\n", stackSize);
+}
+
+__global__ void random_init(int nx,
+    int ny,
+    curandState* state) {
+    int x = threadIdx.x + blockIdx.x * blockDim.x;
+    int y = threadIdx.y + blockIdx.y * blockDim.y;
+    if ((x >= nx) || (y >= ny)) return;
+    int pixel_index = y * nx + x;
+    curand_init(0, pixel_index, 0, &state[pixel_index]);
+}
+
+void SetCurandState(curandState* curand_state,int nx,int ny,dim3 blocks,dim3 threads, CudaPointerList* pointerList) {
+    // ‰æ‘f‚²‚Æ‚É—”‚ğ‰Šú‰»
+    random_init << <blocks, threads >> > (nx, ny, curand_state);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+    pointerList->append((void**)curand_state);
+
+}
+
+__global__ void destroy(HitableList** world,
+    Camera** camera, TransformList** transformPointer) {
+
+    (*world)->freeMemory();
+    (*transformPointer)->freeMemory();
+    delete* world;
+    delete* camera;
+    delete* transformPointer;
+
+}
