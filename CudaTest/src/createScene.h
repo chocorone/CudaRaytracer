@@ -33,6 +33,11 @@ __global__ void create_BVH(HitableList** list, BVHNode** bvh,curandState* state)
     //(*bvh)->transform->rotation = vec3(0, 45, 0);
 }
 
+__global__ void UpdateBVH(BVHNode** bvh) {
+    (*bvh)->UpdateBVH();
+}
+
+
 // オブジェクトの生成
 __global__ void add_object(HitableList** list,  TransformList** transformPointer)
 {
@@ -148,7 +153,6 @@ __global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData pose,floa
         printf("update %f\n", f);
     }
 }
-
 
 
 __global__ void create_camera(Camera** camera, int nx, int ny,

@@ -63,9 +63,12 @@ public:
         float t1,
         AABB& b) const;
 
+    __device__ void UpdateBVH();
+
     Hitable* left;
     Hitable* right;
     AABB box;
+    bool childIsNode;
 };
 
 
@@ -90,14 +93,17 @@ __device__ BVHNode::BVHNode(Hitable** l,
 
     if (n == 1) {
         left = right = l[0];
+        childIsNode = false;
     }
     else if (n == 2) {
         left = l[0];
         right = l[1];
+        childIsNode = false;
     }
     else {
         left = new BVHNode(l, n / 2, time0, time1, state);
         right = new BVHNode(l + n / 2, n - n / 2, time0, time1, state);
+        childIsNode = true;
     }
 
     AABB box_left, box_right;
@@ -117,6 +123,23 @@ __device__ bool BVHNode::bounding_box(float t0,
     return true;
 }
 
+__device__ void BVHNode::UpdateBVH()
+{
+    if (childIsNode) {
+        ((BVHNode*)left)->UpdateBVH();
+        ((BVHNode*)right)->UpdateBVH();
+    }
+
+    AABB box_left, box_right;
+    if (!left->GetBV(0, 1, box_left) ||
+        !right->GetBV(0, 1, box_right)) {
+        return;
+        // std::cerr << "no bounding box in BVHNode constructor \n";
+    }
+    //КgСе
+    box = surrounding_box(box_left, box);
+    box = surrounding_box(box_right, box);
+}
 
 __device__ bool BVHNode::collision_detection(const Ray& r,
     float t_min,

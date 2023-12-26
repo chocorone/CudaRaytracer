@@ -158,6 +158,14 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
 
+        //BVHの更新
+        UpdateBVH << <1, 1 >> > ((BVHNode**)world);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+        printf("BVH更新完了\n");
+
+
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
