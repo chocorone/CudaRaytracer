@@ -22,7 +22,7 @@
 
 #include "../createScene.h"
 
-#include "../Loader/FbxLoader.h"
+
 #include "core/deviceManage.h"
 
 #define RESOLUTION 1

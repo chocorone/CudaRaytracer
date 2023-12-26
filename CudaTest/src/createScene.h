@@ -17,6 +17,7 @@
 #include "hitable/animationData.h"
 #include "shapes/MeshObject.h"
 #include "core/deviceManage.h"
+#include "Loader/FbxLoader.h"
 
 __device__ float rand(curandState* state) {
     return float(curand_uniform(state));
@@ -196,4 +197,28 @@ void init_List(HitableList** list, CudaPointerList* pointerList)
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
+}
+
+void create_FBXObject(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* fbxAnimationData, CudaPointerList* pointerList) {
+    pointerList->append((void**)fbxData);
+    CreateFBXData(filePath, fbxData, fbxAnimationData);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+}
+
+void create_FBXMesh(HitableList** list, FBXObject* data, FBXAnimationData* fbxAnimationData) 
+{
+    add_mesh_fromPoseData << <1, 1 >> > (list, data, fbxAnimationData->animation[0]); //ÉÅÉbÉVÉÖÇÃà⁄ìÆÇ∆çÏê¨
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+}
+
+void create_BVHfromList(BVHNode** bvh,HitableList** list, curandState* curand_state, CudaPointerList* pointerList)
+{
+    pointerList->append((void**)bvh);
+    create_BVH << <1, 1 >> > (list, bvh, curand_state);
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+    printf("BVHçÏê¨äÆóπ\n");
 }
