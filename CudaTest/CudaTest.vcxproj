@@ -93,6 +93,7 @@
     <ClInclude Include="src\core\render.h" />
     <ClInclude Include="src\core\vec3.h" />
     <ClInclude Include="src\hitable\animationData.h" />
+    <ClInclude Include="src\hitable\BoneBVH.h" />
     <ClInclude Include="src\hitable\hitable.h" />
     <ClInclude Include="src\hitable\bvh.h" />
     <ClInclude Include="src\hitable\hitable_list.h" />

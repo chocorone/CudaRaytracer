@@ -1,58 +1,15 @@
 #pragma once
 
-#include <thrust/sort.h>
-#include <curand.h>
-#include <curand_kernel.h>
-#include "hitable.h"
+#include "bvh.h"
 
-
-struct BoxCompare {
-    __device__ BoxCompare(int m) : mode(m) {}
-    __device__ bool operator()(Hitable* a, Hitable* b) const {
-        // return true;
-
-        AABB box_left, box_right;
-        Hitable* ah = a;
-        Hitable* bh = b;
-
-        if (!ah->GetBV(0, 0, box_left) || !bh->GetBV(0, 0, box_right)) {
-            return false;
-        }
-
-        float val1, val2;
-        if (mode == 1) {
-            val1 = box_left.min().x();
-            val2 = box_right.min().x();
-        }
-        else if (mode == 2) {
-            val1 = box_left.min().y();
-            val2 = box_right.min().y();
-        }
-        else if (mode == 3) {
-            val1 = box_left.min().z();
-            val2 = box_right.min().z();
-        }
-
-        if (val1 - val2 < 0.0) {
-            return false;
-        }
-        else {
-            return true;
-        }
-    }
-    // mode: 1, x; 2, y; 3, z
-    int mode;
-};
-
-
-class BVHNode : public Hitable {
+class BoneBVHNode : public Hitable {
 public:
-    __device__ BVHNode() {}
-    __device__ BVHNode(Hitable** l,
+    __device__ BoneBVHNode() {}
+    __device__ BoneBVHNode(Hitable** l,
         int n,
         float time0,
         float time1,
-        curandState* state) ;
+        curandState* state, Bone* b,bool root);
 
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
@@ -68,17 +25,21 @@ public:
     Hitable* left;
     Hitable* right;
     AABB box;
+    Bone* bone;
     bool childIsNode;
+    bool isRoot;
 };
 
 
-__device__ BVHNode::BVHNode(Hitable** l,
+// 与えられたボーン情報、三角形のリストからBVHを作成する
+__device__ BoneBVHNode::BoneBVHNode(Hitable** l,
     int n,
     float time0,
     float time1,
-    curandState* state) {
+    curandState* state,Bone* b,bool root) {
     transform->ResetTransform();
-    //printf("transform %f,%f,%f\n", transform->rotation.x(), transform->rotation.y(), transform->rotation.z());
+    isRoot = root;
+    bone = b;
 
     int axis = int(3 * curand_uniform(state));
     if (axis == 0) {
@@ -101,8 +62,8 @@ __device__ BVHNode::BVHNode(Hitable** l,
         childIsNode = false;
     }
     else {
-        left = new BVHNode(l, n / 2, time0, time1, state);
-        right = new BVHNode(l + n / 2, n - n / 2, time0, time1, state);
+        left = new BoneBVHNode(l, n / 2, time0, time1, state,bone,false);
+        right = new BoneBVHNode(l + n / 2, n - n / 2, time0, time1, state, bone, false);
         childIsNode = true;
     }
 
@@ -112,18 +73,25 @@ __device__ BVHNode::BVHNode(Hitable** l,
         return;
         // std::cerr << "no bounding box in BVHNode constructor \n";
     }
-   box = surrounding_box(box_left, box_right);
+
+    box = surrounding_box(box_left, box_right);
+
+    if (!childIsNode)
+    {
+        // bvを移動or回転
+        //box = moveAABB(box, -bone->defaultTransform);
+    }
 }
 
 
-__device__ bool BVHNode::bounding_box(float t0,
+__device__ bool BoneBVHNode::bounding_box(float t0,
     float t1,
     AABB& b) const {
     b = box;
     return true;
 }
 
-__device__ void BVHNode::UpdateBVH()
+__device__ void BoneBVHNode::UpdateBVH()
 {
     if (childIsNode) {
         ((BVHNode*)left)->UpdateBVH();
@@ -136,22 +104,43 @@ __device__ void BVHNode::UpdateBVH()
         return;
         // std::cerr << "no bounding box in BVHNode constructor \n";
     }
+
     //拡大
     //box = surrounding_box(box_left, box);
     //box = surrounding_box(box_right, box);
-    
+
     // 再フィット
     box = surrounding_box(box_right, box_left);
+    if (!childIsNode)
+    {
+        // bvを移動or回転
+        //box = moveAABB(box, -bone->nowTransform);
+    }
+
 }
 
-__device__ bool BVHNode::collision_detection(const Ray& r,
+// 光線をボーンと同じだけ回転させて衝突
+__device__ bool BoneBVHNode::collision_detection(const Ray& r,
     float t_min,
     float t_max,
     HitRecord& rec, int frameIndex) const {
-    if (box.hit(r, t_min, t_max)) {
+
+    Ray moved_r(r.origin(), r.direction(), r.time());
+    //ボーンの座標分光線を変形
+    if (isRoot) 
+    {
+        //moved_r = Ray(r.origin() - bone->nowTransform, r.direction(), r.time());
+    }
+
+    if (!childIsNode) {
+        //moved_r = Ray(r.origin() + bone->nowTransform, r.direction(), r.time());
+    }
+
+    //葉とと衝突判定時は光線の変形を戻す
+    if (box.hit(moved_r, t_min, t_max)) {
         HitRecord left_rec, right_rec;
-        bool hit_left = left->hit(r, t_min, t_max, left_rec, frameIndex);
-        bool hit_right = right->hit(r, t_min, t_max, right_rec, frameIndex);
+        bool hit_left = left->hit(moved_r, t_min, t_max, left_rec, frameIndex);
+        bool hit_right = right->hit(moved_r, t_min, t_max, right_rec, frameIndex);
 
         if (hit_left && hit_right) {
             if (left_rec.t < right_rec.t) {

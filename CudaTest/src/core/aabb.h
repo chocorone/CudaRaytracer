@@ -65,3 +65,10 @@ __device__  AABB surrounding_box(AABB box0, AABB box1) {
         fmax(box0.max().z(), box1.max().z()));
     return AABB(small, big);
 }
+
+__device__ AABB moveAABB(AABB box,vec3 pos) 
+{
+    vec3 small = box.min() + pos;
+    vec3 big = box.max() + pos;
+    return AABB(small, big);
+}

@@ -1,47 +1,5 @@
 ﻿#include "core/render.h"
 
-
-class HostPointerList
-{
-public:
-    HostPointerList() { list = new void* (); list_size = 0; }
-    HostPointerList(void** l, int n) { list = l; list_size = n; }
-    void append(void** data)
-    {
-        void** tmp = (void**)malloc(sizeof(void*) * list_size);
-
-        for (int i = 0; i < list_size; i++)
-        {
-            tmp[i] = list[i];
-        }
-
-        free(list);
-
-        list_size++;
-
-        list = (void**)malloc(sizeof(void*) * list_size);
-
-        for (int i = 0; i < list_size - 1; i++)
-        {
-            list[i] = tmp[i];
-        }
-        list[list_size - 1] = data;
-
-        free(tmp);
-    }
-    void freeMemory()
-    {
-        for (size_t i = 0; i < list_size; i++)
-        {
-            free(list[i]);
-        }
-        free(list);
-        list_size = 0;
-    }
-    void** list;
-    int list_size;
-};
-
 int main()
 {
     // パラメーター設定
@@ -52,7 +10,7 @@ int main()
     const int max_depth = 8;
     const int samples = 4;
     const int beginFrame = 0;
-    const int endFrame = 20;
+    const int endFrame = 30;
 
     const int num_pixel = nx * ny;
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
@@ -65,69 +23,50 @@ int main()
     // 乱数列生成用のメモリ確保
     curandState* curand_state;
     checkCudaErrors(cudaMallocManaged((void**)&curand_state, nx * ny * sizeof(curandState)));
-    SetCurandState(curand_state, nx, ny, blocks, threads);
-    pointerList->append((void**)curand_state);
+    SetCurandState(curand_state, nx, ny, blocks, threads,pointerList);
 
     //カメラ作成
     Camera** camera;
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
-    init_camera(camera, pointerList,nx,ny);
+    init_camera(camera, nx, ny, pointerList);
 
-    //オブジェクトの作成
+    //オブジェクト作成
     TransformList** transformPointer;
     checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
-    pointerList->append((void**)transformPointer);
-    init_transformList << <1, 1 >> > (transformPointer);
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    //BuildAnimatedSphere(world,animationData, transformPointer);
+    init_TransformList(transformPointer, pointerList);
     AnimationDataList* animationData = new AnimationDataList();
+    //BuildAnimatedSphere(world,animationData, transformPointer);
     
-
     //FBXオブジェクト作成
-    //データ作成
+    HitableList** fbxList;
+    checkCudaErrors(cudaMallocManaged((void**)&fbxList, sizeof(HitableList*)));
+    init_List(fbxList, pointerList);
+    //FBXファイル読み込み
     FBXObject* fbxData = new FBXObject();//モデルデータ
     checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
-    pointerList->append((void**)fbxData);
     FBXAnimationData* fbxAnimationData;//アニメーションデータ
     fbxAnimationData = (FBXAnimationData*)malloc(sizeof(FBXAnimationData*));
-    CreateFBXData("./objects/human_light.fbx", fbxData, fbxAnimationData);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-    //メッシュ作成
-    HitableList** FBXlist;
-    checkCudaErrors(cudaMallocManaged((void**)&FBXlist, sizeof(HitableList*)));
-    pointerList->append((void**)FBXlist);
-    init_List << <1, 1 >> > (FBXlist);
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    add_mesh_fromPoseData << <1, 1 >> > (FBXlist, fbxData, fbxAnimationData->animation[0]); //メッシュの移動と作成
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    //BVH作成
-    BVHNode** bvh;
-    checkCudaErrors(cudaMallocManaged((void**)&bvh, sizeof(BVHNode*)));
-    pointerList->append((void**)bvh);
-    create_BVH << <1, 1 >> > (FBXlist, bvh, curand_state);
-    CHECK(cudaDeviceSynchronize());
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
+    create_FBXObject("./objects/human_light.fbx", fbxData, fbxAnimationData, pointerList);
+    // メッシュの生成
+    create_FBXMesh(fbxList, fbxData, fbxAnimationData);
+    //BVHの作成
+    HitableList** boneBVHList;
+    checkCudaErrors(cudaMallocManaged((void**)&boneBVHList, sizeof(BVHNode*)));
+    init_List(boneBVHList, pointerList);
+    createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
 
     //レンダリング
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
-    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvh, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state);
+    //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)FBXBVH, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
+    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state);
     
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());
     pointerList->freeMemory();
-    checkCudaErrors(cudaGetLastError());
-    //free(pointerList);
     free(animationData);
     free(fbxAnimationData);
-
-    
     cudaDeviceReset();
-
+    checkCudaErrors(cudaGetLastError());
 
     return 0;
 }
