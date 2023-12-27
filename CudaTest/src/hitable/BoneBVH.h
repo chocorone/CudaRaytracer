@@ -79,7 +79,7 @@ __device__ BoneBVHNode::BoneBVHNode(Hitable** l,
     if (!childIsNode)
     {
         // bvを移動or回転
-        box = moveAABB(box, -bone->defaultTransform);
+        //box = moveAABB(box, -bone->defaultTransform);
     }
 }
 
@@ -114,7 +114,7 @@ __device__ void BoneBVHNode::UpdateBVH()
     if (!childIsNode)
     {
         // bvを移動or回転
-        box = moveAABB(box, -bone->nowTransform);
+        //box = moveAABB(box, -bone->nowTransform);
     }
 
 }
@@ -129,11 +129,11 @@ __device__ bool BoneBVHNode::collision_detection(const Ray& r,
     //ボーンの座標分光線を変形
     if (isRoot) 
     {
-        moved_r = Ray(r.origin() - bone->nowTransform, r.direction(), r.time());
+        //moved_r = Ray(r.origin() - bone->nowTransform, r.direction(), r.time());
     }
 
     if (!childIsNode) {
-        moved_r = Ray(r.origin() + bone->nowTransform, r.direction(), r.time());
+        //moved_r = Ray(r.origin() + bone->nowTransform, r.direction(), r.time());
     }
 
     //葉とと衝突判定時は光線の変形を戻す
