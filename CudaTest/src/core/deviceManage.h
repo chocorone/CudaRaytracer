@@ -74,25 +74,25 @@ public:
             if (typeid(list[i]) == typeid(HitableList**)) 
             {
                 destroy << <1, 1 >> > ((HitableList**)list[i]);
-                checkCudaErrors(cudaDeviceSynchronize());
+                CHECK(cudaDeviceSynchronize());
                 checkCudaErrors(cudaGetLastError());
             }
             if (typeid(list[i]) == typeid(TransformList**))
             {
                 destroy << <1, 1 >> > ((TransformList**)list[i]);
-                checkCudaErrors(cudaDeviceSynchronize());
+                CHECK(cudaDeviceSynchronize());
                 checkCudaErrors(cudaGetLastError());
             }
 
             if (typeid(list[i]) == typeid(Camera**))
             {
                 destroy << <1, 1 >> > ((Camera**)list[i]);
-                checkCudaErrors(cudaDeviceSynchronize());
+                CHECK(cudaDeviceSynchronize());
                 checkCudaErrors(cudaGetLastError());
             }
 
             checkCudaErrors(cudaFree(list[i]));
-            checkCudaErrors(cudaDeviceSynchronize());
+            CHECK(cudaDeviceSynchronize());
             checkCudaErrors(cudaGetLastError());
 
         }

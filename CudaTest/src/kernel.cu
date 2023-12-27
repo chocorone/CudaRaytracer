@@ -1,47 +1,5 @@
 ﻿#include "core/render.h"
 
-
-class HostPointerList
-{
-public:
-    HostPointerList() { list = new void* (); list_size = 0; }
-    HostPointerList(void** l, int n) { list = l; list_size = n; }
-    void append(void** data)
-    {
-        void** tmp = (void**)malloc(sizeof(void*) * list_size);
-
-        for (int i = 0; i < list_size; i++)
-        {
-            tmp[i] = list[i];
-        }
-
-        free(list);
-
-        list_size++;
-
-        list = (void**)malloc(sizeof(void*) * list_size);
-
-        for (int i = 0; i < list_size - 1; i++)
-        {
-            list[i] = tmp[i];
-        }
-        list[list_size - 1] = data;
-
-        free(tmp);
-    }
-    void freeMemory()
-    {
-        for (size_t i = 0; i < list_size; i++)
-        {
-            free(list[i]);
-        }
-        free(list);
-        list_size = 0;
-    }
-    void** list;
-    int list_size;
-};
-
 int main()
 {
     // パラメーター設定
@@ -92,21 +50,23 @@ int main()
     // メッシュの生成
     create_FBXMesh(fbxList, fbxData, fbxAnimationData);
     //BVHの作成
-    BVHNode** FBXBVH;
-    checkCudaErrors(cudaMallocManaged((void**)&FBXBVH, sizeof(BVHNode*)));
-    create_BVHfromList(FBXBVH, fbxList, curand_state, pointerList);
+    HitableList** boneBVHList;
+    checkCudaErrors(cudaMallocManaged((void**)&boneBVHList, sizeof(BVHNode*)));
+    init_List(boneBVHList, pointerList);
+    createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
 
     //レンダリング
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
-    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)FBXBVH, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state);
+    //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)FBXBVH, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
+    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state);
     
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());
     pointerList->freeMemory();
-    cudaDeviceReset();
-
     free(animationData);
     free(fbxAnimationData);
+    cudaDeviceReset();
+    checkCudaErrors(cudaGetLastError());
 
     return 0;
 }
