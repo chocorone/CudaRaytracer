@@ -44,8 +44,13 @@ __global__ void UpdateBVH(BVHNode** bvh) {
     (*bvh)->UpdateBVH();
 }
 
-__global__ void UpdateBVH(BoneBVHNode** bvh) {
-    (*bvh)->UpdateBVH();
+__global__ void UpdateBVH(HitableList** list) {
+
+    for (size_t i = 0; i < (*list)->list_size; i++)
+    {
+        ((BoneBVHNode*)((*list)->list[i]))->UpdateBVH();
+    }
+    
 }
 
 

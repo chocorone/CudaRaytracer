@@ -51,7 +51,7 @@ int main()
     create_FBXMesh(fbxList, fbxData, fbxAnimationData);
     //BVHの作成
     HitableList** boneBVHList;
-    checkCudaErrors(cudaMallocManaged((void**)&boneBVHList, sizeof(BVHNode*)));
+    checkCudaErrors(cudaMallocManaged((void**)&boneBVHList, sizeof(HitableList**)));
     init_List(boneBVHList, pointerList);
     createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
 

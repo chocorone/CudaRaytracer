@@ -153,17 +153,17 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         }*/
 
         //メッシュの位置の更新
-        /*update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
+        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
 
         //BVHの更新
-        UpdateBVH << <1, 1 >> > ((BoneBVHNode**)world);
+        UpdateBVH << <1, 1 >> > ((HitableList**)world);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
-        printf("BVH更新完了\n");*/
+        printf("BVH更新完了\n");
 
 
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
