@@ -135,7 +135,7 @@ __device__ bool BoneBVHNode::collision_detection(const Ray& r,
     //—t‚Ìe‚ÆÕ“Ë”»’èŽž‚ÍŒõü‚Ì•ÏŒ`‚ð–ß‚·
     if (box.hit(moved_r, t_min, t_max)) {
         if (!childIsNode) {
-            printf("hit to node\n");
+            //printf("hit to node\n");
             moved_r = Ray(r.origin() + bone->nowTransform, r.direction(), r.time());
         }
         HitRecord left_rec, right_rec;
@@ -150,20 +150,20 @@ __device__ bool BoneBVHNode::collision_detection(const Ray& r,
                 rec = right_rec;
             }
 
-            if (!childIsNode) printf("hit to child\n");
+            //if (!childIsNode) printf("hit to child\n");
 
             return true;
         }
         else if (hit_left) {
             rec = left_rec;
-            if (!childIsNode) printf("hit to child\n");
+            //if (!childIsNode) printf("hit to child\n");
 
 
             return true;
         }
         else if (hit_right) {
             rec = right_rec;
-            if (!childIsNode) printf("hit to child\n");
+            //if (!childIsNode) printf("hit to child\n");
 
             return true;
         }

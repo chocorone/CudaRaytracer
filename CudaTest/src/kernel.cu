@@ -35,8 +35,7 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
     init_TransformList(transformPointer, pointerList);
     AnimationDataList* animationData = new AnimationDataList();
-    //BuildAnimatedSphere(world,animationData, transformPointer);
-    
+
     //FBXオブジェクト作成
     HitableList** fbxList;
     checkCudaErrors(cudaMallocManaged((void**)&fbxList, sizeof(HitableList*)));
@@ -45,7 +44,7 @@ int main()
     FBXObject* fbxData = new FBXObject();//モデルデータ
     checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
     FBXAnimationData* fbxAnimationData;//アニメーションデータ
-    fbxAnimationData = (FBXAnimationData*)malloc(sizeof(FBXAnimationData*));
+    fbxAnimationData = new FBXAnimationData();
     create_FBXObject("./objects/human_light.fbx", fbxData, fbxAnimationData, pointerList);
     // メッシュの生成
     create_FBXMesh(fbxList, fbxData, fbxAnimationData);
@@ -54,7 +53,7 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&boneBVHList, sizeof(HitableList**)));
     init_List(boneBVHList, pointerList);
     createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
-
+    
     //レンダリング
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)FBXBVH, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
@@ -63,10 +62,11 @@ int main()
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());
     pointerList->freeMemory();
-    free(animationData);
-    free(fbxAnimationData);
     cudaDeviceReset();
     checkCudaErrors(cudaGetLastError());
+
+    free(animationData);
+    free(fbxAnimationData);
 
     return 0;
 }

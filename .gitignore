@@ -398,3 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 CudaTest/images/image.ppm
 CudaTest/images/picture_1.png
+CudaTest/images
