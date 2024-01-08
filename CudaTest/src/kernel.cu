@@ -1,5 +1,5 @@
-﻿#include "core/render.h"
-#include "swatch.h"
+﻿#include "Loader/CSVWriter.h"
+#include "core/render.h"
 
 
 int main()
@@ -19,7 +19,10 @@ int main()
     dim3 threads(threadX, threadY);
     CudaPointerList* pointerList = new CudaPointerList();//あとで破棄するデバイス用ポインターのリスト
 
+    //計測用データ
     StopWatch sw;
+    std::vector<std::vector<std::string>> data;
+    data.push_back({ "frame", "rendering", "update","build"});
 
     //ヒープサイズ・スタックサイズ指定
     ChangeHeapSize(1024 * 1024 * 1024);
@@ -52,25 +55,26 @@ int main()
     create_FBXObject("./objects/human_light.fbx", fbxData, fbxAnimationData, pointerList);
     // メッシュの生成
     create_FBXMesh(fbxList, fbxData, fbxAnimationData);
+
     //BVHの作成
+    sw.Reset();
+    sw.Start();
     HitableList** boneBVHList;
     checkCudaErrors(cudaMallocManaged((void**)&boneBVHList, sizeof(HitableList**)));
     init_List(boneBVHList, pointerList);
     createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
-    
-    //計測開始
-    sw.Reset();
-    sw.Start();
-
+    sw.Stop();
+    data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
 
     //レンダリング
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)FBXBVH, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
-    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state);
+    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state, data);
     
-    sw.Stop();
-    std::cout << "合計レンダリング時間"<<sw.GetTime() << std::endl;
-    sw.Reset();
+   
+    // CSVファイルに書き出す
+    writeCSV("output.csv", data);
+    printf("csv書き出し完了\n");
 
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());

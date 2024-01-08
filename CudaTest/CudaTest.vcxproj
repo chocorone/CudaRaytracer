@@ -97,6 +97,7 @@
     <ClInclude Include="src\hitable\hitable.h" />
     <ClInclude Include="src\hitable\bvh.h" />
     <ClInclude Include="src\hitable\hitable_list.h" />
+    <ClInclude Include="src\Loader\CSVWriter.h" />
     <ClInclude Include="src\Loader\FbxLoader.h" />
     <ClInclude Include="src\material\material.h" />
     <ClInclude Include="src\material\texture.h" />

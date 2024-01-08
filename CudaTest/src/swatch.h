@@ -1,6 +1,4 @@
-#ifndef SWATCH_H
-#define SWATCH_H
-
+#pragma once
 #include <windows.h>
 
 class StopWatch
@@ -18,4 +16,3 @@ public:
         double GetTime(void) { return FTime; };
 };
 
-#endif

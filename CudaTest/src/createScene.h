@@ -169,7 +169,7 @@ __global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData pose,floa
             //ConstantTexture* tex = (ConstantTexture*)mat->albedo;
             //tex->color = vec3(tex->color.r(), tex->color.g(), f/10);
         }
-        printf("update %f\n", f);
+        //printf("update %f\n", f);
     }
 }
 

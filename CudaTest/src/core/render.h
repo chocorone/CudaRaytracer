@@ -1,4 +1,6 @@
 #pragma once
+
+
 #define _USE_MATH_DEFINES
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "../../stb-master/stb_image_write.h"
@@ -18,20 +20,22 @@
 #include <stdio.h>
 #include <curand.h>
 #include <curand_kernel.h>
-
-
 #include "../createScene.h"
-
-
 #include "core/deviceManage.h"
 
 #define RESOLUTION 1
 
+#define NOMINMAX
+#include "../swatch.h"
 
-struct RGB {
+
+
+struct RGBColor {
+public:
+
     unsigned char r, g, b, a; //赤, 緑, 青, 透過
-    RGB() = default;
-    constexpr RGB(const unsigned char r_, const unsigned char g_, const unsigned char b_, const unsigned char a_) :r(r_), g(g_), b(b_), a(a_) {}
+    __host__ __device__ RGBColor() {}
+    __host__ __device__ RGBColor(const unsigned char r_, const unsigned char g_, const unsigned char b_, const unsigned char a_) :r(r_), g(g_), b(b_), a(a_) {}
 };
 
 __device__ vec3 backgroundSky(const vec3& d)
@@ -130,8 +134,9 @@ __global__ void SetTransform(Transform transform, TransformList** transformPoint
 
 void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
     Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer, FBXAnimationData* fbxAnimationData,
-    dim3 blocks, dim3 threads, curandState* curand_state) {
+    dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
 
+    StopWatch sw;
     // 画素のメモリ確保
     const int num_pixel = nx * ny;
     vec3* colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
@@ -152,28 +157,39 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
             animationData->list[i]->SetNext(frameIndex);
         }*/
 
+
         //メッシュの位置の更新
         update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
-
+       
+        sw.Reset();
+        sw.Start();
         //BVHの更新
         UpdateBVH << <1, 1 >> > ((HitableList**)world);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
+        sw.Stop();
+        std::string updateTime = std::to_string(sw.GetTime());
         printf("BVH更新完了\n");
 
-
+        sw.Reset();
+        sw.Start();
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
         cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
+        sw.Stop();
+        std::string renderTime = std::to_string(sw.GetTime());
+
+        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,""});
+
 
         //png書き出し
-        RGB* rgb = new RGB[nx * ny];
+        RGBColor* rgb = new RGBColor[nx * ny];
         for (int i = 0; i < ny; i++) {
             for (int j = 0; j < nx; j++) {
                 size_t pixel_index = (ny - 1 - i) * nx + j;
@@ -189,7 +205,7 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
         strcpy(pathname, folderPath);
         sprintf(pathname + strlen(folderPath), "%d", frameIndex);
         strcat(pathname, ".png");
-        stbi_write_png(pathname, nx, ny, sizeof(RGB), rgb, 0);
+        stbi_write_png(pathname, nx, ny, sizeof(RGBColor), rgb, 0);
 
         printf("%dフレーム目:画像書き出し\n", frameIndex);
         delete[] pathname; 
