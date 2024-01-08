@@ -1,4 +1,6 @@
 ﻿#include "core/render.h"
+#include "swatch.h"
+
 
 int main()
 {
@@ -16,6 +18,8 @@ int main()
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
     dim3 threads(threadX, threadY);
     CudaPointerList* pointerList = new CudaPointerList();//あとで破棄するデバイス用ポインターのリスト
+
+    StopWatch sw;
 
     //ヒープサイズ・スタックサイズ指定
     ChangeHeapSize(1024 * 1024 * 1024);
@@ -54,11 +58,20 @@ int main()
     init_List(boneBVHList, pointerList);
     createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
     
+    //計測開始
+    sw.Reset();
+    sw.Start();
+
+
     //レンダリング
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
     //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)FBXBVH, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
     renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state);
     
+    sw.Stop();
+    std::cout << "合計レンダリング時間"<<sw.GetTime() << std::endl;
+    sw.Reset();
+
     //メモリ解放
     checkCudaErrors(cudaDeviceSynchronize());
     pointerList->freeMemory();

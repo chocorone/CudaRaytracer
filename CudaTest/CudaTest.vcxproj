@@ -108,6 +108,7 @@
     <ClInclude Include="src\hitable\transform.h" />
     <ClInclude Include="src\shapes\triangle.h" />
     <ClInclude Include="src\createScene.h" />
+    <ClInclude Include="src\swatch.h" />
     <ClInclude Include="stb-master\stb_connected_components.h" />
     <ClInclude Include="stb-master\stb_c_lexer.h" />
     <ClInclude Include="stb-master\stb_divide.h" />
@@ -130,6 +131,7 @@
     <ClInclude Include="stb-master\stb_voxel_render.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\swatch.cpp" />
     <ClCompile Include="stb-master\stb_vorbis.c" />
   </ItemGroup>
   <ItemGroup>
