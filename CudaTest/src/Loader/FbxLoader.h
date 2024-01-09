@@ -132,7 +132,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 
 }
 
-void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXAnimationData* animationData,FBXObject* fbxData) {
+void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXAnimationData* animationData,FBXObject* fbxData, int& endFrame) {
 	//アニメーション情報取得
 	int animStackCount = importer->GetAnimStackCount();
 	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
@@ -141,6 +141,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames60);
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
+	endFrame = framecount-1;
 	
 	auto mesh = scene->GetSrcObject<FbxMesh>();
 	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
@@ -173,7 +174,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 	}	
 }
 
-bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* animationData)
+bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* animationData, int& endFrame)
 {
 	auto manager = FbxManager::Create();
 
@@ -196,7 +197,7 @@ bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, FBXAnimation
 
 	GetBoneData(importer, scene,fbxData);
 	animationData->object = fbxData;
-	GetAnimationData(importer, scene,animationData,fbxData);	
+	GetAnimationData(importer, scene,animationData,fbxData, endFrame);
 
 	// マネージャー、シーンの破棄
 	importer->Destroy();

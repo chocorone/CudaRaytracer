@@ -117,8 +117,8 @@ __global__ void render(vec3* colorBuffer, Hitable** world,Camera** camera,curand
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
         //col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
-        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
-        //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
+        //col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);
     col[0] = sqrt(col[0]);
@@ -132,8 +132,67 @@ __global__ void SetTransform(Transform transform, TransformList** transformPoint
     *((*transformPointer)->list[i]) = transform;
 }
 
-void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    Hitable** world,  Camera** camera, AnimationDataList* animationData, TransformList** transformPointer, FBXAnimationData* fbxAnimationData,
+void WritePng(int nx,int ny,int frameIndex,const vec3* colorBuffer)
+{
+    RGBColor* rgb = new RGBColor[nx * ny];
+    for (int i = 0; i < ny; i++) {
+        for (int j = 0; j < nx; j++) {
+            size_t pixel_index = (ny - 1 - i) * nx + j;
+            rgb[i * nx + j].r = char(255.99 * colorBuffer[pixel_index].r());
+            rgb[i * nx + j].g = char(255.99 * colorBuffer[pixel_index].g());
+            rgb[i * nx + j].b = char(255.99 * colorBuffer[pixel_index].b());
+            rgb[i * nx + j].a = 255;
+        }
+    }
+
+    char* folderPath = "images/moveTest/picture_";
+    char* pathname = new char[strlen(folderPath) + sizeof(frameIndex) + strlen(".png") + 1];
+    strcpy(pathname, folderPath);
+    sprintf(pathname + strlen(folderPath), "%d", frameIndex);
+    strcat(pathname, ".png");
+    stbi_write_png(pathname, nx, ny, sizeof(RGBColor), rgb, 0);
+
+    printf("%dフレーム目:画像書き出し\n", frameIndex);
+    delete[] pathname;
+}
+
+void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
+    Hitable** world, Camera** camera, AnimationDataList* animationData, FBXAnimationData* fbxAnimationData,
+    dim3 blocks, dim3 threads, curandState* curand_state) {
+
+    // 画素のメモリ確保
+    const int num_pixel = nx * ny;
+    vec3* colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
+    for (int i = 0; i < nx * ny; i++)
+    {
+        colorBuffer[i] = vec3(0);
+    }
+    vec3* d_colorBuffer;
+    cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
+    cudaMemcpy(d_colorBuffer, colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
+    // レンダリング
+    for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
+    {
+        //メッシュの位置の更新
+        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+        cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
+        //png書き出し
+        WritePng(nx, ny, frameIndex, colorBuffer);
+    }
+    checkCudaErrors(cudaFree(d_colorBuffer));
+    free(colorBuffer);
+}
+
+void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
+    Hitable** world, Camera** camera, AnimationDataList* animationData, FBXAnimationData* fbxAnimationData,
     dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
 
     StopWatch sw;
@@ -150,14 +209,60 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
-        // 位置更新処理
-        /*for (int i = 0; i < animationData->list_size; i++)
-        {
-            SetTransform << <1, 1 >> > (animationData->list[i]->Get_NextTransform(frameIndex), transformPointer, i);
-            animationData->list[i]->SetNext(frameIndex);
-        }*/
+        //メッシュの位置の更新
+        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
 
+        sw.Reset();
+        sw.Start();
+        //BVHの更新
+        UpdateBVH << <1, 1 >> > ((BVHNode**)world);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+        sw.Stop();
+        std::string updateTime = std::to_string(sw.GetTime());
+        printf("BVH更新完了\n");
 
+        sw.Reset();
+        sw.Start();
+        render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
+        CHECK(cudaDeviceSynchronize());
+        checkCudaErrors(cudaGetLastError());
+        checkCudaErrors(cudaDeviceSynchronize());
+        cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
+        sw.Stop();
+        std::string renderTime = std::to_string(sw.GetTime());
+
+        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,"" });
+
+        //png書き出し
+        WritePng(nx, ny, frameIndex, colorBuffer);
+    }
+    checkCudaErrors(cudaFree(d_colorBuffer));
+    free(colorBuffer);
+}
+
+void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
+    Hitable** world,  Camera** camera, AnimationDataList* animationData, FBXAnimationData* fbxAnimationData,
+    dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
+
+    StopWatch sw;
+    // 画素のメモリ確保
+    const int num_pixel = nx * ny;
+    vec3* colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
+    for (int i = 0; i < nx * ny; i++)
+    {
+        colorBuffer[i] = vec3(0);
+    }
+    vec3* d_colorBuffer;
+    cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
+    cudaMemcpy(d_colorBuffer, colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
+    // レンダリング
+    for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
+    {
         //メッシュの位置の更新
         update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
@@ -187,28 +292,8 @@ void renderAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int 
 
         data.push_back({ std::to_string(frameIndex), renderTime, updateTime,""});
 
-
         //png書き出し
-        RGBColor* rgb = new RGBColor[nx * ny];
-        for (int i = 0; i < ny; i++) {
-            for (int j = 0; j < nx; j++) {
-                size_t pixel_index = (ny - 1 - i) * nx + j;
-                rgb[i * nx + j].r = char(255.99 * colorBuffer[pixel_index].r());
-                rgb[i * nx + j].g = char(255.99 * colorBuffer[pixel_index].g());
-                rgb[i * nx + j].b = char(255.99 * colorBuffer[pixel_index].b());
-                rgb[i * nx + j].a = 255;
-            }
-        }
-
-        char* folderPath = "images/moveTest/picture_";
-        char* pathname = new char[strlen(folderPath) + sizeof(frameIndex) + strlen(".png") + 1];
-        strcpy(pathname, folderPath);
-        sprintf(pathname + strlen(folderPath), "%d", frameIndex);
-        strcat(pathname, ".png");
-        stbi_write_png(pathname, nx, ny, sizeof(RGBColor), rgb, 0);
-
-        printf("%dフレーム目:画像書き出し\n", frameIndex);
-        delete[] pathname; 
+        WritePng(nx, ny, frameIndex, colorBuffer);
     }
     checkCudaErrors(cudaFree(d_colorBuffer));
     free(colorBuffer);

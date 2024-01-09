@@ -12,7 +12,7 @@ int main()
     const int max_depth = 8;
     const int samples = 4;
     const int beginFrame = 0;
-    const int endFrame = 30;
+    int endFrame = 30;
 
     const int num_pixel = nx * ny;
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
@@ -52,11 +52,15 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
     FBXAnimationData* fbxAnimationData;//アニメーションデータ
     fbxAnimationData = new FBXAnimationData();
-    create_FBXObject("./objects/human_light.fbx", fbxData, fbxAnimationData, pointerList);
+    create_FBXObject("./objects/low_Walking.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
     // メッシュの生成
     create_FBXMesh(fbxList, fbxData, fbxAnimationData);
 
-    //BVHの作成
+    //ただのリスト
+    //renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)fbxList, camera, animationData, fbxAnimationData, blocks, threads, curand_state);
+
+    //ボーンによるBVH
+    /*
     sw.Reset();
     sw.Start();
     HitableList** boneBVHList;
@@ -65,13 +69,22 @@ int main()
     createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
     sw.Stop();
     data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
-
-    //レンダリング
-    //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)world, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
-    //renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)FBXBVH, camera, animationData, transformPointer, fbxAnimationData, blocks, threads, curand_state);
-    renderAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera,animationData,transformPointer, fbxAnimationData,blocks,threads,curand_state, data);
+    renderBVHNodeAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera, animationData, fbxAnimationData, blocks, threads, curand_state, data);
+    */
     
-   
+
+    //BVH
+    ///*
+    sw.Reset();
+    sw.Start();
+    BVHNode** bvhNode;
+    checkCudaErrors(cudaMallocManaged((void**)&bvhNode, sizeof(HitableList**)));
+    create_BVHfromList(bvhNode,fbxList,curand_state,pointerList);
+    sw.Stop();
+    data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
+    renderBVHAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvhNode, camera,animationData, fbxAnimationData,blocks,threads,curand_state, data);
+    //*/
+
     // CSVファイルに書き出す
     writeCSV("output.csv", data);
     printf("csv書き出し完了\n");

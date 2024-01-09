@@ -78,7 +78,6 @@ __device__ BVHNode::BVHNode(Hitable** l,
     float time1,
     curandState* state) {
     transform->ResetTransform();
-    //printf("transform %f,%f,%f\n", transform->rotation.x(), transform->rotation.y(), transform->rotation.z());
 
     int axis = int(3 * curand_uniform(state));
     if (axis == 0) {
@@ -137,8 +136,8 @@ __device__ void BVHNode::UpdateBVH()
         // std::cerr << "no bounding box in BVHNode constructor \n";
     }
     //拡大
-    //box = surrounding_box(box_left, box);
-    //box = surrounding_box(box_right, box);
+    box = surrounding_box(box_left, box);
+    box = surrounding_box(box_right, box);
     
     // 再フィット
     box = surrounding_box(box_right, box_left);
@@ -149,6 +148,8 @@ __device__ bool BVHNode::collision_detection(const Ray& r,
     float t_max,
     HitRecord& rec, int frameIndex) const {
     if (box.hit(r, t_min, t_max)) {
+        //rec.normal = vec3(0,0,1);
+        //return true;
         HitRecord left_rec, right_rec;
         bool hit_left = left->hit(r, t_min, t_max, left_rec, frameIndex);
         bool hit_right = right->hit(r, t_min, t_max, right_rec, frameIndex);

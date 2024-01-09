@@ -121,6 +121,7 @@ __global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePo
             vec3 idx = data->mesh->idxVertex[i];
             vec3 v[3] = { data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])] };
             Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), true);
+            //Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), false);
             data->triangleData[i] = triagnle;
             (*list)->append(triagnle);
         }
@@ -189,7 +190,8 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
 }
 
 void init_camera(Camera** camera, int nx, int ny,CudaPointerList* pointerList) {
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 20, 400), vec3(0, 20, 0), 10.0, 0.0, 60);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 70, 400), vec3(0, 70, 0), 10.0, 0.0, 60);
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 55, 400), vec3(0, 55, 0), 10.0, 0.0, 60);
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
     pointerList->append((void**)camera);
     checkCudaErrors(cudaGetLastError());
@@ -211,9 +213,9 @@ void init_List(HitableList** list, CudaPointerList* pointerList)
     pointerList->append((void**)list);
 }
 
-void create_FBXObject(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* fbxAnimationData, CudaPointerList* pointerList) {
+void create_FBXObject(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* fbxAnimationData,int &endFrame, CudaPointerList* pointerList) {
     pointerList->append((void**)fbxData);
-    CreateFBXData(filePath, fbxData, fbxAnimationData);
+    CreateFBXData(filePath, fbxData, fbxAnimationData, endFrame);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 }
@@ -237,10 +239,10 @@ void create_BVHfromList(BVHNode** bvh,HitableList** list, curandState* curand_st
 
 __global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d_hasTriangle, int boneIndex, curandState* curand_state)
 {
-    printf("ボーン %d\n", boneIndex);
+    //printf("ボーン %d\n", boneIndex);
     // ボーンの三角形のHitableListを作成
     HitableList* triangleList = new HitableList();
-    printf("リスト初期化\n");
+    //printf("リスト初期化\n");
 
     //三角形がsetに含まれるか判定、含まれてたらリストに入れる
     for (int triangleIndex = 0; triangleIndex < d_FBXdata->mesh->nTriangles; triangleIndex++)
@@ -249,14 +251,14 @@ __global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d
             triangleList->append(d_FBXdata->triangleData[triangleIndex]);
         }
     }
-    printf("リスト作成完了\n");
+    //printf("リスト作成完了\n");
 
     //リストからBoneBVHNodeを作成する
     BoneBVHNode* node = new BoneBVHNode(triangleList->list, triangleList->list_size, 0, 1, curand_state, &d_FBXdata->boneList[boneIndex],true);
-    printf("BVH作成完了\n");
+    //printf("BVH作成完了\n");
     //BoneBVHNodeをListに追加
     (*list)->append(node);
-    printf("リスト追加完了\n");
+    //printf("リスト追加完了\n");
 }
 
 __global__ void CopyBoneCount(FBXObject* d_FBXdata, int* d_BoneCount, int* d_triangleCount) {
@@ -326,7 +328,7 @@ void createBoneBVH(HitableList** list, FBXObject* d_FBXdata, curandState* curand
         cudaMalloc(&d_weightCount, 1 * sizeof(int));
         CopyWeightCount << <1, 1 >> > (d_FBXdata, boneIndex,d_weightCount);
         cudaMemcpy(h_weightCount, d_weightCount, 1, cudaMemcpyDeviceToHost);
-        printf("weightCount:%d\n", h_weightCount[0]);
+        //printf("weightCount:%d\n", h_weightCount[0]);
 
         int* h_weightIndecis = (int*)malloc(h_weightCount[0] * sizeof(int));
         int* d_weightIndecis;
@@ -339,7 +341,7 @@ void createBoneBVH(HitableList** list, FBXObject* d_FBXdata, curandState* curand
             boneVerticesIndexes.insert(h_weightIndecis[weightIndex]);
         }
 
-        printf("三角形の数 %d\n", h_triangleCount[0]);
+        //printf("三角形の数 %d\n", h_triangleCount[0]);
         //三角形がsetに含まれるか判定、含まれてたらリストに入れる
         for (int triangleIndex = 0; triangleIndex < h_triangleCount[0]; triangleIndex++)
         {
