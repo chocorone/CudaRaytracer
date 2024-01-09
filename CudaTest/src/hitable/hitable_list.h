@@ -36,6 +36,30 @@ public:
 
         free(tmp); 
     }
+
+    __device__ void Reseize(int n)
+    {
+        Hitable** tmp = (Hitable**)malloc(sizeof(Hitable*) * list_size);
+
+        for (int i = 0; i < list_size; i++)
+        {
+            tmp[i] = list[i];
+        }
+
+        free(list);
+
+        
+
+        list = (Hitable**)malloc(sizeof(Hitable*) * n);
+
+        for (int i = 0; i < list_size - 1; i++)
+        {
+            list[i] = tmp[i];
+        }
+        
+        list_size = n;
+        free(tmp);
+    }
     __device__  void freeMemory()
     {
         free(list);

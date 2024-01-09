@@ -117,13 +117,15 @@ __global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePo
     {
         data->triangleData = (Triangle**)malloc(data->mesh->nTriangles*sizeof(Triangle*));
         Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
+
+        (*list)->Reseize(data->mesh->nTriangles);
         for (int i = 0; i < data->mesh->nTriangles; i++) {
             vec3 idx = data->mesh->idxVertex[i];
             vec3 v[3] = { data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])] };
-            Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), true);
-            //Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), false);
+            //Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), true);
+            Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), false);
             data->triangleData[i] = triagnle;
-            (*list)->append(triagnle);
+            (*list)->list[i] = (Hitable*)triagnle;
         }
     }
 }
@@ -190,9 +192,8 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
 }
 
 void init_camera(Camera** camera, int nx, int ny,CudaPointerList* pointerList) {
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 70, 400), vec3(0, 70, 0), 10.0, 0.0, 60);
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 55, 400), vec3(0, 55, 0), 10.0, 0.0, 60);
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(278, 278, -700), vec3(278, 278, 0), 10.0, 0.0, 40);
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 70, 400), vec3(0, 70, 0), 10.0, 0.0, 60);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 200), vec3(0, 200, 0), 10.0, 0.0, 60);
     pointerList->append((void**)camera);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
