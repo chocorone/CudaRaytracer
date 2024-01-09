@@ -6,7 +6,8 @@
 class HitableList : public Hitable {
 public:
     __device__ HitableList() { list = new Hitable * (); list_size = 0; }
-    __device__ HitableList(Hitable** l, int n){ list = l; list_size = n; }
+    __device__ HitableList(Hitable** l, int n) { list = l; list_size = n; }
+    __device__ HitableList(int n){ list_size = n; list = (Hitable**)malloc(sizeof(Hitable*) * list_size);}
     __device__ HitableList(Hitable** l, int n, Transform* t) : Hitable(t) { list = l; list_size = n; }
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,

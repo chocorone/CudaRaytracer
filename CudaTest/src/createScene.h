@@ -32,6 +32,10 @@ __global__ void create_List(HitableList** list)
 {
     (*list) = new HitableList();
 }
+__global__ void create_List(HitableList** list,int n)
+{
+    (*list) = new HitableList(n);
+}
 
 
 //BVHの作成
@@ -192,8 +196,10 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
 }
 
 void init_camera(Camera** camera, int nx, int ny,CudaPointerList* pointerList) {
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 70, 400), vec3(0, 70, 0), 10.0, 0.0, 60);
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 200), vec3(0, 200, 0), 10.0, 0.0, 60);
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 150, 400), vec3(0, 150, 0), 10.0, 0.0, 40);//low_walk
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 200), vec3(0, 200, 0), 10.0, 0.0, 60);//high_walk
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 200, 400), vec3(0, 200, 0), 10.0, 0.0, 60);
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 300), vec3(0, 200, 0), 10.0, 0.0, 60);//新しい
     pointerList->append((void**)camera);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
@@ -235,21 +241,22 @@ void create_BVHfromList(BVHNode** bvh,HitableList** list, curandState* curand_st
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    printf("BVH作成完了\n");
 }
 
-__global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d_hasTriangle, int boneIndex, curandState* curand_state)
+__global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d_hasTriangle, int boneIndex, curandState* curand_state,int hasTriangleNum)
 {
     //printf("ボーン %d\n", boneIndex);
     // ボーンの三角形のHitableListを作成
-    HitableList* triangleList = new HitableList();
+    HitableList* triangleList = new HitableList(hasTriangleNum);
     //printf("リスト初期化\n");
 
+    int i = 0;
     //三角形がsetに含まれるか判定、含まれてたらリストに入れる
     for (int triangleIndex = 0; triangleIndex < d_FBXdata->mesh->nTriangles; triangleIndex++)
     {
         if (d_hasTriangle[triangleIndex]) {
-            triangleList->append(d_FBXdata->triangleData[triangleIndex]);
+            triangleList->list[i]=d_FBXdata->triangleData[triangleIndex];
+            i++;
         }
     }
     //printf("リスト作成完了\n");
@@ -258,9 +265,22 @@ __global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d
     BoneBVHNode* node = new BoneBVHNode(triangleList->list, triangleList->list_size, 0, 1, curand_state, &d_FBXdata->boneList[boneIndex],true);
     //printf("BVH作成完了\n");
     //BoneBVHNodeをListに追加
-    (*list)->append(node);
+    (*list)->list[boneIndex]=node;
     //printf("リスト追加完了\n");
+    triangleList->freeMemory();
 }
+
+
+
+__global__ void create_emptyBoneBVH(HitableList** list,int boneIndex)
+{
+    //リストからBoneBVHNodeを作成する
+    BoneBVHNode* node = new BoneBVHNode(true);
+    (*list)->list[boneIndex] = node;
+}
+
+
+
 
 __global__ void CopyBoneCount(FBXObject* d_FBXdata, int* d_BoneCount, int* d_triangleCount) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
@@ -308,11 +328,14 @@ void createBoneBVH(HitableList** list, FBXObject* d_FBXdata, curandState* curand
     cudaMemcpy(h_boneCount, d_boneCount, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_triangleCount, d_triangleCount, sizeof(int), cudaMemcpyDeviceToHost);
 
+    create_List << <1, 1 >> > (list, h_boneCount[0]);
+
     vec3* h_idxVertices = (vec3*)malloc(h_triangleCount[0] * sizeof(vec3));
     vec3* d_idxVertices;
     cudaMalloc(&d_idxVertices, h_triangleCount[0] * sizeof(vec3));
     CopyIdxVertices << <1, 1 >> > (d_FBXdata, d_idxVertices, h_triangleCount[0]);
     cudaMemcpy(h_idxVertices, d_idxVertices, h_triangleCount[0] * sizeof(vec3), cudaMemcpyDeviceToHost);
+    std::vector<bool> triangleAdded(h_triangleCount[0],false);
 
     // BoneBVHNodeをボーン分作成
     for (int boneIndex = 0; boneIndex < h_boneCount[0]; boneIndex++)
@@ -342,24 +365,33 @@ void createBoneBVH(HitableList** list, FBXObject* d_FBXdata, curandState* curand
             boneVerticesIndexes.insert(h_weightIndecis[weightIndex]);
         }
 
+        int hasTriangleNum=0;
         //printf("三角形の数 %d\n", h_triangleCount[0]);
         //三角形がsetに含まれるか判定、含まれてたらリストに入れる
         for (int triangleIndex = 0; triangleIndex < h_triangleCount[0]; triangleIndex++)
         {
             h_hasTriangle[triangleIndex] = false;
+            if (triangleAdded[triangleIndex])continue;
             vec3 pointsIndex = h_idxVertices[triangleIndex];
             if (boneVerticesIndexes.find((int)pointsIndex[0]) != boneVerticesIndexes.end()
                 && boneVerticesIndexes.find((int)pointsIndex[1]) != boneVerticesIndexes.end()
                 && boneVerticesIndexes.find((int)pointsIndex[2]) != boneVerticesIndexes.end())
             {
                 h_hasTriangle[triangleIndex]=true;
+                triangleAdded[triangleIndex] = true;
+                hasTriangleNum++;
             }
         }
         bool* d_hasTriangle;
         cudaMalloc(&d_hasTriangle, h_triangleCount[0] * sizeof(bool));
         cudaMemcpy(d_hasTriangle, h_hasTriangle, h_triangleCount[0] * sizeof(bool), cudaMemcpyHostToDevice);
 
-        create_BoneBVH << <1, 1 >> > (list, d_FBXdata, d_hasTriangle, boneIndex, curand_state);
+        if (hasTriangleNum==0) {
+            create_emptyBoneBVH << <1, 1 >> > (list, boneIndex);
+        }
+        else {
+            create_BoneBVH << <1, 1 >> > (list, d_FBXdata, d_hasTriangle, boneIndex, curand_state, hasTriangleNum);
+        }
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());

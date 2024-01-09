@@ -5,6 +5,7 @@
 class BoneBVHNode : public Hitable {
 public:
     __device__ BoneBVHNode() {}
+    __device__ BoneBVHNode(bool empty) { isEmpty = true; }
     __device__ BoneBVHNode(Hitable** l,
         int n,
         float time0,
@@ -28,6 +29,7 @@ public:
     Bone* bone;
     bool childIsNode;
     bool isRoot;
+    bool isEmpty = false;
 };
 
 
@@ -93,6 +95,7 @@ __device__ bool BoneBVHNode::bounding_box(float t0,
 
 __device__ void BoneBVHNode::UpdateBVH()
 {
+    if (isEmpty)return;
     if (childIsNode) {
         ((BoneBVHNode*)left)->UpdateBVH();
         ((BoneBVHNode*)right)->UpdateBVH();
@@ -124,6 +127,7 @@ __device__ bool BoneBVHNode::collision_detection(const Ray& r,
     float t_min,
     float t_max,
     HitRecord& rec, int frameIndex) const {
+    if (isEmpty)return false;
 
     Ray moved_r(r.origin(), r.direction(), r.time());
     //ボーンの座標分光線を変形

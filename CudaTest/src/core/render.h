@@ -117,8 +117,8 @@ __global__ void render(vec3* colorBuffer, Hitable** world,Camera** camera,curand
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
         //col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
-        //col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
-        col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
+        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);
     col[0] = sqrt(col[0]);
@@ -157,7 +157,7 @@ void WritePng(int nx,int ny,int frameIndex,const vec3* colorBuffer)
 }
 
 void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
-    Hitable** world, Camera** camera, AnimationDataList* animationData, FBXAnimationData* fbxAnimationData,
+    Hitable** world, Camera** camera, FBXAnimationData* fbxAnimationData,
     dim3 blocks, dim3 threads, curandState* curand_state) {
 
     // âÊëfÇÃÉÅÉÇÉäämï€
@@ -192,7 +192,7 @@ void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFr
 }
 
 void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
-    Hitable** world, Camera** camera, AnimationDataList* animationData, FBXAnimationData* fbxAnimationData,
+    Hitable** world, Camera** camera, FBXAnimationData* fbxAnimationData,
     dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
 
     StopWatch sw;
@@ -246,7 +246,7 @@ void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFra
 }
 
 void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    Hitable** world,  Camera** camera, AnimationDataList* animationData, FBXAnimationData* fbxAnimationData,
+    Hitable** world,  Camera** camera, FBXAnimationData* fbxAnimationData,
     dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
 
     StopWatch sw;
