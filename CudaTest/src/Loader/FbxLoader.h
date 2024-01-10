@@ -40,7 +40,7 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject*
 	}
 	int nPoints, nTriangles;
 	nPoints = mesh->GetControlPointsCount();
-	cudaMallocManaged((void**)&fbxData->mesh, nPoints * sizeof(MeshData));
+	cudaMallocManaged((void**)&fbxData->mesh, sizeof(MeshData*));
 	fbxData->mesh->nPoints = nPoints;
 	nTriangles = mesh->GetPolygonCount();
 	fbxData->mesh->nTriangles = nTriangles;
@@ -48,7 +48,9 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject*
 	printf("データ数取得完了\n");
 
 	cudaMallocManaged((void**)&fbxData->mesh->points, nPoints * sizeof(vec3));
+	cudaDeviceSynchronize();
 	cudaMallocManaged((void**)&fbxData->mesh->idxVertex, nTriangles * sizeof(vec3));
+	cudaDeviceSynchronize();
 	cudaMallocManaged((void**)&fbxData->mesh->normals, nTriangles * sizeof(vec3));
 	cudaDeviceSynchronize();
 
@@ -92,6 +94,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 
 	int ClusterCount = pSkin->GetClusterCount();
 
+	printf("ボーン数%d\n", ClusterCount);
 	fbxData->boneCount = ClusterCount;
 	cudaMallocManaged((void**)&fbxData->boneList, sizeof(Bone) * ClusterCount);
 	cudaDeviceSynchronize();
@@ -116,6 +119,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 			fbxData->boneList[i].weightIndices[weightIndex] = pCluster->GetControlPointIndices()[weightIndex];
 			fbxData->boneList[i].weights[weightIndex] = pCluster->GetControlPointWeights()[weightIndex];
 			
+			//ここで2フレームあたりの頂点の位置を計算して入れる
 		}
 
 		printf("%s\n", pCluster->GetName());
@@ -138,7 +142,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
 	FbxLongLong start = pFbxTakeInfo->mLocalTimeSpan.GetStart().Get();
 	FbxLongLong stop = pFbxTakeInfo->mLocalTimeSpan.GetStop().Get();
-	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames60);
+	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames30);
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
 	endFrame = framecount-1;
