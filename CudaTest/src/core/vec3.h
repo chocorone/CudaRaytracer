@@ -216,21 +216,19 @@ __host__ __device__ inline vec3 rotate(vec3 origin,vec3 rotation) {
     return origin;
 }
 
-__host__ __device__ inline vec3 SLerp(vec3 start, vec3 end, float t) {
+__host__ __device__ inline vec3 SLerp(vec3 a, vec3 b, float t) {
+    vec3 na = unit_vector(a);
+    vec3 nb = unit_vector(b);
 
-    // 2ƒxƒNƒgƒ‹ŠÔ‚ÌŠp“xi‰sŠp‘¤j
-    float angle = acos(dot(start, end));
+    float theta = acos(dot(na, nb));
+    float sinTheta = sin(theta);
+    float sinThetaFrom = sin((1 - t) * theta);
+    float sinThetaTo = sin(t * theta);
 
-    // sinƒÆ
-    float SinTh = sin(angle);
+    float magnitudeLerp = (b.length()-a.length())*t+a.length();
+    vec3 slerpVector = (sinThetaFrom * na + sinThetaTo * nb) / sinTheta;
 
-    // •âŠÔŒW”
-    float Ps = sin(angle * (1 - t));
-    float Pe = sin(angle * t);
-
-    vec3 out = (Ps * start + Pe * end) / SinTh;
-
-    return unit_vector(out);
+    return magnitudeLerp * slerpVector;
 }
 
 __host__ __device__ inline vec3 maxVec3(vec3 a,vec3 b) {
