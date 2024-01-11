@@ -79,6 +79,7 @@ __device__ BVHNode::BVHNode(Hitable** l,
     float time1,
     curandState* state) {
     transform->ResetTransform();
+    
 
     int axis = int(3 * curand_uniform(state));
     if (axis == 0) {
@@ -93,16 +94,18 @@ __device__ BVHNode::BVHNode(Hitable** l,
 
     if (n == 1) {
         childList = new HitableList(1);
+        childList->transform->ResetTransform();
         childList->list[0] = l[0];
         childIsNode = false;
-        box = surrounding_box_from_list(childList);
+        childList->GetBV(0,1,box);
     }
     else if (n == 2) {
         childList = new HitableList(2);
+        childList->transform->ResetTransform();
         childList->list[0] = l[0];
         childList->list[1] = l[1];
         childIsNode = false;
-        box = surrounding_box_from_list(childList);
+        childList->GetBV(0, 1, box);
     }
     else {
         left = new BVHNode(l, n / 2, time0, time1, state);
@@ -150,7 +153,7 @@ __device__ void BVHNode::UpdateBVH()
     }
     else {
         //printf("leaf");
-        box = surrounding_box_from_list(childList);
+        childList->bounding_box(0,1,box);
     }
     
 }
@@ -159,7 +162,9 @@ __device__ bool BVHNode::collision_detection(const Ray& r,
     float t_min,
     float t_max,
     HitRecord& rec, int frameIndex) const {
+   
     if (!box.hit(r, t_min, t_max)) return false;
+
     if (childIsNode) 
     {
         HitRecord left_rec, right_rec;

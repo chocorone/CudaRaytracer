@@ -116,17 +116,3 @@ __device__ bool HitableList::bounding_box(float t0,
     }
     return true;
 }
-
-
-__device__  AABB surrounding_box_from_list(HitableList* list) {
-
-    AABB box;
-    list->list[0]->GetBV(0, 1, box);
-    for (int i = 1; i < list->list_size; i++)
-    {
-        AABB newBox;
-        list->list[i]->GetBV(0, 1, newBox);
-        box = surrounding_box(box, newBox);
-    }
-    return box;
-}

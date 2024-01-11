@@ -41,11 +41,20 @@ __global__ void create_List(HitableList** list,int n)
 //BVH�̍쐬
 __global__ void create_BVH(HitableList** list, BVHNode** bvh,curandState* state) {
     *bvh = new BVHNode((*list)->list, (*list)->list_size, 0, 1, state);
-    //(*bvh)->transform->rotation = vec3(0, 45, 0);
 }
 
 __global__ void UpdateBVH(BVHNode** bvh) {
-    (*bvh)->UpdateBVH();
+    if (threadIdx.x == 0 && blockIdx.x == 0)
+    {
+        (*bvh)->UpdateBVH();
+    }
+}
+
+void Update_BVH(BVHNode** d_bvhNode) 
+{
+    UpdateBVH << <1, 1 >> > (d_bvhNode);
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
 }
 
 __global__ void UpdateBVH(HitableList** list) {
@@ -299,13 +308,11 @@ void create_FBXMesh(HitableList** list, FBXObject* data)
     checkCudaErrors(cudaFree(d_normals));
 }
 
-void create_BVHfromList(BVHNode** bvh,HitableList** list, curandState* curand_state, CudaPointerList* pointerList)
+void create_BVHfromList(BVHNode** bvh,HitableList** list, curandState* curand_state)
 {
-    pointerList->append((void**)bvh);
     create_BVH << <1, 1 >> > (list, bvh, curand_state);
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
 }
 
 __global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d_hasTriangle, int boneIndex, curandState* curand_state,int hasTriangleNum)
