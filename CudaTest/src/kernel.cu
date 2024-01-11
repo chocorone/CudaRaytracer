@@ -67,27 +67,28 @@ int main()
     curandState* d_curand_state;
     cudaMalloc(&d_curand_state, nx * ny * sizeof(curandState));
     SetCurandState(d_curand_state, nx, ny, blocks, threads,pointerList);
-
     //カメラ作成
     Camera** d_camera;
     cudaMalloc(&d_camera, sizeof(Camera*));
     init_camera(d_camera, nx, ny, pointerList);
+    printf("シーン準備完了\n");
 
-    //FBXオブジェクト作成
-    HitableList** d_fbxList;
-    cudaMalloc(&d_fbxList, sizeof(HitableList*));
     //FBXファイル読み込み
     FBXObject* h_fbxData = new FBXObject();//モデルデータ
     //create_FBXObject("./objects/high_Walking3.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
     CreateFBXData("./objects/low_walking.fbx", h_fbxData, endFrame);
     //create_FBXObject("./objects/low_standUp.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
-    
-    // メッシュの生成
-    //create_FBXMesh(d_fbxList, h_fbxData);
-    printf("シーン作成完了\n");
+    printf("FBXロード完了\n");
 
+    //FBXオブジェクト作成
+    HitableList** d_fbxList;
+    cudaMalloc(&d_fbxList, sizeof(HitableList*));
+    create_FBXMesh(d_fbxList, h_fbxData,pointerList);
+    printf("FBX作成完了\n");
+
+    endFrame = 5;
     //ただのリスト
-    //renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)fbxList, camera, fbxAnimationData, blocks, threads, curand_state);
+    renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)d_fbxList, d_camera, blocks, threads, d_curand_state,h_fbxData,d_fbxList);
     //ボーンによるBVH
     //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, fbxAnimationData, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH

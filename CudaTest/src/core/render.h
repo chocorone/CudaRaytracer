@@ -156,40 +156,74 @@ void WritePng(int nx,int ny,int frameIndex,const vec3* colorBuffer)
     delete[] pathname;
 }
 
+void calcPose(int frame,const FBXObject* data,vec3* &newPos,const vec3* idxVertices)
+{
+    newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
+    for (int i = 0; i < data->mesh->nPoints; i++) {
+        newPos[i] = data->mesh->points[i];
+    }
+
+    BonePoseData pose = data->fbxAnimationData->animation[frame];
+
+    for (int boneIndex = 0; boneIndex < data->boneCount; boneIndex++)
+    {
+        for (int weightIndex = 0; weightIndex < data->boneList[boneIndex].weightCount; weightIndex++)
+        {
+            int vertexIndex = data->boneList[boneIndex].weightIndices[weightIndex];
+            double weight = data->boneList[boneIndex].weights[weightIndex];
+            //とりあえず動くが関節が微妙
+            const vec3 posePos = (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
+            newPos[vertexIndex] += posePos;
+        }
+    }
+}
+
 void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
-    Hitable** world, Camera** camera, FBXAnimationData* fbxAnimationData,
-    dim3 blocks, dim3 threads, curandState* curand_state) {
+    Hitable** world, Camera** camera, dim3 blocks, dim3 threads, curandState* curand_state,FBXObject* obj,HitableList** fbxList) {
 
     // 画素のメモリ確保
     const int num_pixel = nx * ny;
-    vec3* colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
+    vec3* h_colorBuffer = (vec3*)malloc(nx * ny * sizeof(vec3));
     for (int i = 0; i < nx * ny; i++)
     {
-        colorBuffer[i] = vec3(0);
+        h_colorBuffer[i] = vec3(0);
     }
     vec3* d_colorBuffer;
     cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
-    cudaMemcpy(d_colorBuffer, colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_colorBuffer, h_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
+
+    vec3* h_pointPos = (vec3*)malloc(sizeof(vec3) * obj->mesh->nPoints);
+
+    vec3* d_idxVertices;
+    cudaMalloc(&d_idxVertices, sizeof(vec3) * obj->mesh->nTriangles);
+    cudaMemcpy(d_idxVertices, obj->mesh->idxVertex, obj->mesh->nTriangles * sizeof(vec3), cudaMemcpyHostToDevice);
+
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        /*
-        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
+        calcPose(frameIndex,obj, h_pointPos, obj->mesh->idxVertex);
+        vec3* d_newPos;
+        cudaMalloc(&d_newPos, sizeof(vec3) * obj->mesh->nPoints);
+        cudaMemcpy(d_newPos, h_pointPos, obj->mesh->nPoints * sizeof(vec3), cudaMemcpyHostToDevice);
+        update_pose << <1, 1 >> > (fbxList,d_newPos,d_idxVertices);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
-        */
+        
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
-        cudaMemcpy(colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
         //png書き出し
-        WritePng(nx, ny, frameIndex, colorBuffer);
+        WritePng(nx, ny, frameIndex, h_colorBuffer);
+
+        checkCudaErrors(cudaFree(d_newPos));
     }
     checkCudaErrors(cudaFree(d_colorBuffer));
-    free(colorBuffer);
+    checkCudaErrors(cudaFree(d_idxVertices));
+    free(h_colorBuffer);
+    free(h_pointPos);
 }
 
 void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
