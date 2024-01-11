@@ -69,9 +69,9 @@ int main()
     SetCurandState(d_curand_state, nx, ny, blocks, threads,pointerList);
 
     //カメラ作成
-    Camera** camera;
-    checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
-    init_camera(camera, nx, ny, pointerList);
+    Camera** d_camera;
+    cudaMalloc(&d_camera, sizeof(Camera*));
+    init_camera(d_camera, nx, ny, pointerList);
 
     //FBXオブジェクト作成
     HitableList** fbxList;
@@ -95,7 +95,7 @@ int main()
     //ボーンによるBVH
     //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, fbxAnimationData, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH
-    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, fbxAnimationData, blocks, threads, d_curand_state, data, pointerList);
+    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, d_camera, fbxAnimationData, blocks, threads, d_curand_state, data, pointerList);
 
 
     // CSVファイルに書き出す
