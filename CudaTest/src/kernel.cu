@@ -62,8 +62,8 @@ int main()
     data.push_back({ "frame", "rendering", "update","build"});
 
     //ヒープサイズ・スタックサイズ指定
-    ChangeHeapSize(1024 * 1024 * 1024*4);
-    ChangeStackSize(1024 * 16);
+    ChangeHeapSize(1024 * 1024 * 1024 * 128);
+    ChangeStackSize(1024 * 128);
     // 乱数列生成用のメモリ確保
     curandState* curand_state;
     checkCudaErrors(cudaMallocManaged((void**)&curand_state, nx * ny * sizeof(curandState)));
@@ -74,12 +74,6 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
     init_camera(camera, nx, ny, pointerList);
 
-    //オブジェクト作成
-    TransformList** transformPointer;
-    checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
-    init_TransformList(transformPointer, pointerList);
-    AnimationDataList* animationData = new AnimationDataList();
-
     //FBXオブジェクト作成
     HitableList** fbxList;
     checkCudaErrors(cudaMallocManaged((void**)&fbxList, sizeof(HitableList*)));
@@ -89,13 +83,14 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
     FBXAnimationData* fbxAnimationData;//アニメーションデータ
     fbxAnimationData = new FBXAnimationData();
-    //create_FBXObject("./objects/high_Walking2.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
-    create_FBXObject("./objects/low_standUp.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
+    //create_FBXObject("./objects/high_Walking3.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
+    create_FBXObject("./objects/low_walking.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
+    //create_FBXObject("./objects/low_standUp.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
+    
     // メッシュの生成
     create_FBXMesh(fbxList, fbxData, fbxAnimationData);
     printf("シーン作成完了\n");
 
-    //endFrame = 0;
     //ただのリスト
     //renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)fbxList, camera, fbxAnimationData, blocks, threads, curand_state);
     //ボーンによるBVH
@@ -113,8 +108,6 @@ int main()
     pointerList->freeMemory();
     cudaDeviceReset();
     checkCudaErrors(cudaGetLastError());
-
-    free(animationData);
     free(fbxAnimationData);
 
     return 0;

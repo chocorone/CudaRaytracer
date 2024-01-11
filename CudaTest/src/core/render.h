@@ -209,6 +209,7 @@ void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFra
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
+        /*
         //メッシュの位置の更新
         update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
@@ -225,7 +226,7 @@ void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFra
         sw.Stop();
         std::string updateTime = std::to_string(sw.GetTime());
         printf("BVH更新完了\n");
-
+        */
         sw.Reset();
         sw.Start();
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
@@ -236,7 +237,7 @@ void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFra
         sw.Stop();
         std::string renderTime = std::to_string(sw.GetTime());
 
-        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,"" });
+        //data.push_back({ std::to_string(frameIndex), renderTime, updateTime,"" });
 
         //png書き出し
         WritePng(nx, ny, frameIndex, colorBuffer);

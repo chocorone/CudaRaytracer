@@ -121,12 +121,10 @@ __global__ void add_mesh_fromPoseData(HitableList** list, FBXObject* data,BonePo
     {
         data->triangleData = (Triangle**)malloc(data->mesh->nTriangles*sizeof(Triangle*));
         Material* mat = new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05)));
-
         (*list)->Reseize(data->mesh->nTriangles);
         for (int i = 0; i < data->mesh->nTriangles; i++) {
             vec3 idx = data->mesh->idxVertex[i];
             vec3 v[3] = { data->mesh->points[int(idx[2])], data->mesh->points[int(idx[1])], data->mesh->points[int(idx[0])] };
-            //Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), true);
             Triangle* triagnle = new Triangle(v, data->mesh->normals[i], mat, false, new Transform(), false);
             data->triangleData[i] = triagnle;
             (*list)->list[i] = (Hitable*)triagnle;
@@ -141,23 +139,34 @@ __device__ void CalcFBXVertexPos(FBXObject* data, BonePoseData pose,vec3* newPos
     }
 
     for (int boneIndex = 0; boneIndex < data->boneCount; boneIndex++)
+    //for (int boneIndex = 3; boneIndex < 7; boneIndex++)
     {
         data->boneList[boneIndex].nowTransform = pose.nowTransforom[boneIndex];
         data->boneList[boneIndex].nowRotation = pose.nowRatation[boneIndex];
-        for (int weightIndex = 0; weightIndex < data->boneList[boneIndex].weightCount; weightIndex++)
-        {
+
+       for (int weightIndex = 0; weightIndex < data->boneList[boneIndex].weightCount; weightIndex++)
+       {
             int vertexIndex = data->boneList[boneIndex].weightIndices[weightIndex];
             double weight = data->boneList[boneIndex].weights[weightIndex];
-            // ボーンのデフォルトの位置を中心にウェイト分だけ頂点を回転
-            const vec3 verticesBasedOrigin = data->mesh->points[vertexIndex] - data->boneList[boneIndex].defaultTransform;
-            const vec3 boneRotateDiff = pose.nowRatation[boneIndex] - data->boneList[boneIndex].defaultRotation;
-            const vec3 rotatedPosBasedOrigin = rotate(verticesBasedOrigin, boneRotateDiff * weight);
-            const vec3 rotatedPos = rotatedPosBasedOrigin + data->boneList[boneIndex].defaultTransform;
-            // ウェイト分だけボーンと同様に移動
-            const vec3 movedPos = rotatedPos + (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
-            //それぞれのボーンの差分を加算
-            newPos[vertexIndex] += (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
-        }
+            //とりあえず動くが関節が微妙
+            const vec3 posePos = (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
+            
+            //SLerpで試す
+            //const vec3 posePos = SLerp(vec3(0), pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform,weight);
+
+            //回転を試してみたい
+            //頂点をボーンのデフォルトの位置分移動
+            //const vec3 localPos =  data->boneList[boneIndex].nowTransform- data->boneList[boneIndex].defaultTransform;
+            //原点で回転させる
+            //const vec3 rotateDiff = data->boneList[boneIndex].nowRotation - data->boneList[boneIndex].defaultRotation;
+            //const vec3 rotateDiff = data->boneList[boneIndex].nowRotation;
+            //const vec3 localRotatedPos = rotate(localPos * weight, rotateDiff);
+            //移動分を加算
+            //const vec3 posePos = localPos * weight ;
+
+            //テスト
+            newPos[vertexIndex] += posePos;
+       }
     }
 }
 
@@ -197,8 +206,9 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
 
 void init_camera(Camera** camera, int nx, int ny,CudaPointerList* pointerList) {
     create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 150, 400), vec3(0, 150, 0), 10.0, 0.0, 40);//low_walk
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 200, 400), vec3(0, 200, 0), 10.0, 0.0, 60);//low_stand
+
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 200), vec3(0, 200, 0), 10.0, 0.0, 60);//high_walk
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 200, 400), vec3(0, 200, 0), 10.0, 0.0, 60);
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 300), vec3(0, 200, 0), 10.0, 0.0, 60);//新しい
     pointerList->append((void**)camera);
     checkCudaErrors(cudaGetLastError());
@@ -245,11 +255,8 @@ void create_BVHfromList(BVHNode** bvh,HitableList** list, curandState* curand_st
 
 __global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d_hasTriangle, int boneIndex, curandState* curand_state,int hasTriangleNum)
 {
-    //printf("ボーン %d\n", boneIndex);
     // ボーンの三角形のHitableListを作成
     HitableList* triangleList = new HitableList(hasTriangleNum);
-    //printf("リスト初期化\n");
-
     int i = 0;
     //三角形がsetに含まれるか判定、含まれてたらリストに入れる
     for (int triangleIndex = 0; triangleIndex < d_FBXdata->mesh->nTriangles; triangleIndex++)
@@ -259,14 +266,11 @@ __global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d
             i++;
         }
     }
-    //printf("リスト作成完了\n");
 
     //リストからBoneBVHNodeを作成する
     BoneBVHNode* node = new BoneBVHNode(triangleList->list, triangleList->list_size, 0, 1, curand_state, &d_FBXdata->boneList[boneIndex],true);
-    //printf("BVH作成完了\n");
     //BoneBVHNodeをListに追加
     (*list)->list[boneIndex]=node;
-    //printf("リスト追加完了\n");
     triangleList->freeMemory();
 }
 
@@ -274,7 +278,6 @@ __global__ void create_BoneBVH(HitableList** list, FBXObject* d_FBXdata, bool* d
 
 __global__ void create_emptyBoneBVH(HitableList** list,int boneIndex)
 {
-    //リストからBoneBVHNodeを作成する
     BoneBVHNode* node = new BoneBVHNode(true);
     (*list)->list[boneIndex] = node;
 }
@@ -340,7 +343,7 @@ void createBoneBVH(HitableList** list, FBXObject* d_FBXdata, curandState* curand
     // BoneBVHNodeをボーン分作成
     for (int boneIndex = 0; boneIndex < h_boneCount[0]; boneIndex++)
     {
-        printf("BVH作成 %d\n", boneIndex);
+        //printf("BVH作成 %d\n", boneIndex);
         bool* h_hasTriangle = (bool*)malloc(h_triangleCount[0] * sizeof(bool));
         //setにボーンの頂点のインデックスを格納
         std::set<int> boneVerticesIndexes;

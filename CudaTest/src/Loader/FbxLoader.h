@@ -142,7 +142,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
 	FbxLongLong start = pFbxTakeInfo->mLocalTimeSpan.GetStart().Get();
 	FbxLongLong stop = pFbxTakeInfo->mLocalTimeSpan.GetStop().Get();
-	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames30);
+	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames60);
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
 	endFrame = framecount-1;

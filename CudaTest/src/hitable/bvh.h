@@ -65,8 +65,9 @@ public:
 
     __device__ void UpdateBVH();
 
-    Hitable* left;
-    Hitable* right;
+    BVHNode* left;
+    BVHNode* right;
+    HitableList* childList;
     AABB box;
     bool childIsNode;
 };
@@ -91,27 +92,33 @@ __device__ BVHNode::BVHNode(Hitable** l,
     }
 
     if (n == 1) {
-        left = right = l[0];
+        childList = new HitableList(1);
+        childList->list[0] = l[0];
         childIsNode = false;
+        box = surrounding_box_from_list(childList);
     }
     else if (n == 2) {
-        left = l[0];
-        right = l[1];
+        childList = new HitableList(2);
+        childList->list[0] = l[0];
+        childList->list[1] = l[1];
         childIsNode = false;
+        box = surrounding_box_from_list(childList);
     }
     else {
         left = new BVHNode(l, n / 2, time0, time1, state);
         right = new BVHNode(l + n / 2, n - n / 2, time0, time1, state);
         childIsNode = true;
+
+        AABB box_left, box_right;
+        if (!left->GetBV(time0, time1, box_left) ||
+            !right->GetBV(time0, time1, box_right)) {
+            return;
+            // std::cerr << "no bounding box in BVHNode constructor \n";
+        }
+        box = surrounding_box(box_left, box_right);
     }
 
-    AABB box_left, box_right;
-    if (!left->GetBV(time0, time1, box_left) ||
-        !right->GetBV(time0, time1, box_right)) {
-        return;
-        // std::cerr << "no bounding box in BVHNode constructor \n";
-    }
-   box = surrounding_box(box_left, box_right);
+    
 }
 
 
@@ -125,35 +132,39 @@ __device__ bool BVHNode::bounding_box(float t0,
 __device__ void BVHNode::UpdateBVH()
 {
     if (childIsNode) {
-        ((BVHNode*)left)->UpdateBVH();
-        ((BVHNode*)right)->UpdateBVH();
-    }
+        left->UpdateBVH();
+        right->UpdateBVH();
 
-    AABB box_left, box_right;
-    if (!left->GetBV(0, 1, box_left) ||
-        !right->GetBV(0, 1, box_right)) {
-        return;
-        // std::cerr << "no bounding box in BVHNode constructor \n";
+        AABB box_left, box_right;
+        if (!left->GetBV(0, 1, box_left) ||
+            !right->GetBV(0, 1, box_right)) {
+            return;
+            // std::cerr << "no bounding box in BVHNode constructor \n";
+        }
+        //拡大
+        //box = surrounding_box(box_left, box);
+        //box = surrounding_box(box_right, box);
+
+        // 再フィット
+        box = surrounding_box(box_right, box_left);
     }
-    //拡大
-    box = surrounding_box(box_left, box);
-    box = surrounding_box(box_right, box);
+    else {
+        //printf("leaf");
+        box = surrounding_box_from_list(childList);
+    }
     
-    // 再フィット
-    box = surrounding_box(box_right, box_left);
 }
 
 __device__ bool BVHNode::collision_detection(const Ray& r,
     float t_min,
     float t_max,
     HitRecord& rec, int frameIndex) const {
-    if (box.hit(r, t_min, t_max)) {
-        //rec.normal = vec3(0,0,1);
-        //return true;
+    if (!box.hit(r, t_min, t_max)) return false;
+    if (childIsNode) 
+    {
         HitRecord left_rec, right_rec;
         bool hit_left = left->hit(r, t_min, t_max, left_rec, frameIndex);
         bool hit_right = right->hit(r, t_min, t_max, right_rec, frameIndex);
-
         if (hit_left && hit_right) {
             if (left_rec.t < right_rec.t) {
                 rec = left_rec;
@@ -171,9 +182,11 @@ __device__ bool BVHNode::collision_detection(const Ray& r,
             rec = right_rec;
             return true;
         }
-        else {
-            return false;
-        }
+        
+        return false;
+        
     }
-    return false;
+    
+    return childList->hit(r, t_min, t_max, rec, frameIndex);
+    
 }
