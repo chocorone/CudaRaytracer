@@ -1,6 +1,25 @@
 ﻿#include "Loader/CSVWriter.h"
 #include "core/render.h"
 
+void renderFBXList(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,Hitable** world,
+    Camera** camera,dim3 blocks, dim3 threads, curandState* curand_state, FBXObject* obj,HitableList** fbxList)
+{
+    vec3* h_pointPos = (vec3*)malloc(sizeof(vec3) * obj->mesh->nPoints);
+
+    vec3* d_idxVertices;
+    cudaMalloc(&d_idxVertices, sizeof(vec3) * obj->mesh->nTriangles);
+    cudaMemcpy(d_idxVertices, obj->mesh->idxVertex, obj->mesh->nTriangles * sizeof(vec3), cudaMemcpyHostToDevice);
+
+    // レンダリング
+    for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
+    {
+        //メッシュの位置の更新
+        updateFBXObj(frameIndex, obj, h_pointPos, d_idxVertices,fbxList);
+        renderImage(nx, ny, samples, max_depth, frameIndex, world,camera, blocks,threads,curand_state);
+    }
+    checkCudaErrors(cudaFree(d_idxVertices));
+    free(h_pointPos);
+}
 
 void renderBoneBVH(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
     Camera** camera, FBXAnimationData* fbxAnimationData,
@@ -83,12 +102,12 @@ int main()
     //FBXオブジェクト作成
     HitableList** d_fbxList;
     cudaMalloc(&d_fbxList, sizeof(HitableList*));
-    create_FBXMesh(d_fbxList, h_fbxData,pointerList);
+    create_FBXMesh(d_fbxList, h_fbxData);
     printf("FBX作成完了\n");
 
     endFrame = 5;
     //ただのリスト
-    renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)d_fbxList, d_camera, blocks, threads, d_curand_state,h_fbxData,d_fbxList);
+    renderFBXList(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)d_fbxList, d_camera, blocks, threads, d_curand_state,h_fbxData,d_fbxList);
     //ボーンによるBVH
     //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, fbxAnimationData, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH

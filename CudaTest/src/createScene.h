@@ -182,6 +182,40 @@ __global__ void update_pose(HitableList** list,vec3* newPos,vec3* idxVertices)
     }
 }
 
+
+void calcPose(int frame, const FBXObject* data, vec3*& newPos, const vec3* idxVertices)
+{
+    newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
+    for (int i = 0; i < data->mesh->nPoints; i++) {
+        newPos[i] = data->mesh->points[i];
+    }
+
+    BonePoseData pose = data->fbxAnimationData->animation[frame];
+
+    for (int boneIndex = 0; boneIndex < data->boneCount; boneIndex++)
+    {
+        for (int weightIndex = 0; weightIndex < data->boneList[boneIndex].weightCount; weightIndex++)
+        {
+            int vertexIndex = data->boneList[boneIndex].weightIndices[weightIndex];
+            double weight = data->boneList[boneIndex].weights[weightIndex];
+            //とりあえず動くが関節が微妙
+            const vec3 posePos = (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
+            newPos[vertexIndex] += posePos;
+        }
+    }
+}
+
+void updateFBXObj(int frameIndex, FBXObject* obj, vec3* h_pointPos, vec3* d_idxVertices,HitableList** fbxList) {
+    calcPose(frameIndex, obj, h_pointPos, obj->mesh->idxVertex);
+    vec3* d_newPos;
+    cudaMalloc(&d_newPos, sizeof(vec3) * obj->mesh->nPoints);
+    cudaMemcpy(d_newPos, h_pointPos, obj->mesh->nPoints * sizeof(vec3), cudaMemcpyHostToDevice);
+    update_pose << <1, 1 >> > (fbxList, d_newPos, d_idxVertices);
+    CHECK(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaFree(d_newPos));
+}
+
 __global__ void update_mesh_fromPoseData(FBXObject* data, BonePoseData pose,float f) {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
@@ -244,7 +278,7 @@ void init_List(HitableList** list, CudaPointerList* pointerList)
 }
 
 
-void create_FBXMesh(HitableList** list, FBXObject* data, CudaPointerList* pointerList)
+void create_FBXMesh(HitableList** list, FBXObject* data)
 {
     //頂点データのコピー
     vec3* d_point;
@@ -260,9 +294,9 @@ void create_FBXMesh(HitableList** list, FBXObject* data, CudaPointerList* pointe
     add_mesh_withNormal << <1, 1 >> > (list, d_point, d_normals, d_idxVertices, data->mesh->nTriangles); //メッシュの移動と作成
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
-    pointerList->append((void**)d_point);//ここで開放してもいいかも？
-    pointerList->append((void**)d_idxVertices);//ここで開放してもいいかも？
-    pointerList->append((void**)d_normals);//ここで開放してもいいかも？
+    checkCudaErrors(cudaFree(d_point));
+    checkCudaErrors(cudaFree(d_idxVertices));
+    checkCudaErrors(cudaFree(d_normals));
 }
 
 void create_BVHfromList(BVHNode** bvh,HitableList** list, curandState* curand_state, CudaPointerList* pointerList)
