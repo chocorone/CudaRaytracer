@@ -57,7 +57,6 @@ int main()
     CudaPointerList* pointerList = new CudaPointerList();//あとで破棄するデバイス用ポインターのリスト
 
     //計測用データ
-    StopWatch sw;
     std::vector<std::vector<std::string>> data;
     data.push_back({ "frame", "rendering", "update","build"});
 
@@ -65,9 +64,9 @@ int main()
     ChangeHeapSize(1024 * 1024 * 1024 * 128);
     ChangeStackSize(1024 * 128);
     // 乱数列生成用のメモリ確保
-    curandState* curand_state;
-    checkCudaErrors(cudaMallocManaged((void**)&curand_state, nx * ny * sizeof(curandState)));
-    SetCurandState(curand_state, nx, ny, blocks, threads,pointerList);
+    curandState* d_curand_state;
+    cudaMalloc(&d_curand_state, nx * ny * sizeof(curandState));
+    SetCurandState(d_curand_state, nx, ny, blocks, threads,pointerList);
 
     //カメラ作成
     Camera** camera;
@@ -96,7 +95,7 @@ int main()
     //ボーンによるBVH
     //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, fbxAnimationData, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH
-    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, fbxAnimationData, blocks, threads, curand_state, data, pointerList);
+    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, fbxAnimationData, blocks, threads, d_curand_state, data, pointerList);
 
 
     // CSVファイルに書き出す
