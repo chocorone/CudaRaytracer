@@ -41,14 +41,6 @@ public:
     double* weights;
 };
 
-class FBXObject {
-public:
-	MeshData* mesh;
-    Triangle** triangleData;
-	Bone* boneList;
-    int boneCount;
-};
-
 
 class BonePoseData {
 public:
@@ -63,6 +55,20 @@ class FBXAnimationData {
 public:
     __host__ __device__ FBXAnimationData() {}
     int frameCount;
-    FBXObject* object;
     BonePoseData* animation;
 };
+
+class FBXObject {
+public:
+	MeshData* mesh;
+    Triangle** triangleData;
+	Bone* boneList;
+    int boneCount;
+    FBXAnimationData* fbxAnimationData;
+    FBXObject() 
+    {
+        mesh = new MeshData();
+        fbxAnimationData = new FBXAnimationData();
+    }
+};
+

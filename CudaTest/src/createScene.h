@@ -205,14 +205,15 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
 }
 
 void init_camera(Camera** camera, int nx, int ny,CudaPointerList* pointerList) {
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 150, 400), vec3(0, 150, 0), 10.0, 0.0, 40);//low_walk
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 150, 400), vec3(0, 150, 0), 10.0, 0.0, 40);//low_walk
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 80, 600), vec3(0, 80, 0), 10.0, 0.0, 40);//low_walk
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 200, 400), vec3(0, 200, 0), 10.0, 0.0, 60);//low_stand
 
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 200), vec3(0, 200, 0), 10.0, 0.0, 60);//high_walk
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 300), vec3(0, 200, 0), 10.0, 0.0, 60);//V‚µ‚¢
-    pointerList->append((void**)camera);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
+    pointerList->append((void**)camera);
 }
 
 void init_TransformList(TransformList** transformPointer, CudaPointerList* pointerList) {
@@ -230,12 +231,6 @@ void init_List(HitableList** list, CudaPointerList* pointerList)
     pointerList->append((void**)list);
 }
 
-void create_FBXObject(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* fbxAnimationData,int &endFrame, CudaPointerList* pointerList) {
-    pointerList->append((void**)fbxData);
-    CreateFBXData(filePath, fbxData, fbxAnimationData, endFrame);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-}
 
 void create_FBXMesh(HitableList** list, FBXObject* data, FBXAnimationData* fbxAnimationData) 
 {

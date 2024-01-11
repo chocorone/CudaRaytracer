@@ -11,17 +11,6 @@
 #pragma comment(lib, "zlib-md.lib")
 #pragma comment(lib, "zlib-md.lib")
 
-void printAllNode(fbxsdk::FbxNode* object,int index) 
-{
-
-	printf("%*s%s\n", index,"", object->GetNameOnly());
-	
-	for (int i = 0; i < object->GetChildCount(); i++)
-	{
-		printAllNode(object->GetChild(i), index+1);
-	}
-}
-
 
 bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject* fbxData) {
 	// 三角ポリゴンへのコンバート
@@ -38,21 +27,17 @@ bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject*
 		printf("メッシュ取得失敗\n");
 		return false;
 	}
-	int nPoints, nTriangles;
-	nPoints = mesh->GetControlPointsCount();
-	cudaMallocManaged((void**)&fbxData->mesh, sizeof(MeshData*));
+
+	int nPoints = mesh->GetControlPointsCount();
+	int nTriangles = mesh->GetPolygonCount();
 	fbxData->mesh->nPoints = nPoints;
-	nTriangles = mesh->GetPolygonCount();
 	fbxData->mesh->nTriangles = nTriangles;
 
 	printf("データ数取得完了\n");
 
-	cudaMallocManaged((void**)&fbxData->mesh->points, nPoints * sizeof(vec3));
-	cudaDeviceSynchronize();
-	cudaMallocManaged((void**)&fbxData->mesh->idxVertex, nTriangles * sizeof(vec3));
-	cudaDeviceSynchronize();
-	cudaMallocManaged((void**)&fbxData->mesh->normals, nTriangles * sizeof(vec3));
-	cudaDeviceSynchronize();
+	fbxData->mesh->points = (vec3*)malloc(nPoints * sizeof(vec3));
+	fbxData->mesh->idxVertex = (vec3*)malloc(nTriangles * sizeof(vec3));
+	fbxData->mesh->normals = (vec3*)malloc(nTriangles * sizeof(vec3));
 
 	// 頂点座標情報のリストを生成
 	for (int i = 0; i < nPoints; i++)
@@ -96,8 +81,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 
 	printf("ボーン数%d\n", ClusterCount);
 	fbxData->boneCount = ClusterCount;
-	cudaMallocManaged((void**)&fbxData->boneList, sizeof(Bone) * ClusterCount);
-	cudaDeviceSynchronize();
+	fbxData->boneList = (Bone*)malloc(ClusterCount * sizeof(Bone));
 
 	for (int i = 0; i < ClusterCount; i++)
 	{
@@ -110,33 +94,19 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 		
 		fbxData->boneList[i] = Bone(node->GetName(), defaultTransform, defaultRotation,
 			defaultTransform, defaultRotation,pCluster->GetControlPointIndicesCount());
+		fbxData->boneList[i].weightIndices = (int*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(int));
+		fbxData->boneList[i].weights = (double*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(double));
 
-		cudaMallocManaged((void**)&fbxData->boneList[i].weightIndices, sizeof(int) * pCluster->GetControlPointIndicesCount());
-		cudaMallocManaged((void**)&fbxData->boneList[i].weights, sizeof(double) * pCluster->GetControlPointIndicesCount());
-		cudaDeviceSynchronize();
 		for (int weightIndex = 0; weightIndex < pCluster->GetControlPointIndicesCount(); weightIndex++) 
 		{
 			fbxData->boneList[i].weightIndices[weightIndex] = pCluster->GetControlPointIndices()[weightIndex];
 			fbxData->boneList[i].weights[weightIndex] = pCluster->GetControlPointWeights()[weightIndex];
-			
-			//ここで2フレームあたりの頂点の位置を計算して入れる
 		}
-
-		printf("%s\n", pCluster->GetName());
-		
-		
-		printf("     t = (%8.3f, %8.3f, %8.3f)\n     r = (%8.3f, %8.3f, %8.3f)\n",
-			amat.GetT()[0],
-			amat.GetT()[1],
-			amat.GetT()[2],
-			amat.GetR()[0],
-			amat.GetR()[1],
-			amat.GetR()[2]);
 	}
 
 }
 
-void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXAnimationData* animationData,FBXObject* fbxData, int& endFrame) {
+void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene,FBXObject* fbxData, int& endFrame) {
 	//アニメーション情報取得
 	int animStackCount = importer->GetAnimStackCount();
 	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
@@ -155,16 +125,14 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 		return;
 	}
 
-	animationData->frameCount = framecount;
-	animationData->animation = (BonePoseData*)malloc(sizeof(BonePoseData) * framecount);
+	fbxData->fbxAnimationData->frameCount = framecount;
+	fbxData->fbxAnimationData->animation = (BonePoseData*)malloc(sizeof(BonePoseData) * framecount);
 	for (int frameIndex = 0; frameIndex < framecount; frameIndex++) 
 	{
 		BonePoseData pose = BonePoseData();
 		pose.boneCount = fbxData->boneCount;
-		cudaMallocManaged((void**)&pose.nowTransforom, sizeof(vec3) * fbxData->boneCount);
-		cudaMallocManaged((void**)&pose.nowRatation, sizeof(vec3) * fbxData->boneCount);
-		cudaDeviceSynchronize();
-
+		pose.nowTransforom = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
+		pose.nowRatation = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
 		for (int i = 0; i < fbxData->boneCount; i++)
 		{
 			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
@@ -173,12 +141,12 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 			pose.nowTransforom[i] = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
 			pose.nowRatation[i] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
 		}
-		animationData->animation[frameIndex] = pose;
+		fbxData->fbxAnimationData->animation[frameIndex] = pose;
 		printf("%dフレーム目読み込み完了\n", frameIndex);
 	}	
 }
 
-bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, FBXAnimationData* animationData, int& endFrame)
+bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, int& endFrame)
 {
 	auto manager = FbxManager::Create();
 
@@ -200,8 +168,7 @@ bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, FBXAnimation
 	}
 
 	GetBoneData(importer, scene,fbxData);
-	animationData->object = fbxData;
-	GetAnimationData(importer, scene,animationData,fbxData, endFrame);
+	GetAnimationData(importer, scene,fbxData, endFrame);
 
 	// マネージャー、シーンの破棄
 	importer->Destroy();

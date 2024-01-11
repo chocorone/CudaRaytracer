@@ -117,8 +117,8 @@ __global__ void render(vec3* colorBuffer, Hitable** world,Camera** camera,curand
         float v = float(y + curand_uniform(&(state[pixel_index]))) / float(ny);
         Ray r = (*camera)->get_ray(u, v, state);
         //col += shade(r, world, max_depth, &(state[pixel_index]), frameIndex);
-        col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
-        //col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
+        //col += LambertShade(r, world, max_depth, &(state[pixel_index]),frameIndex);
+        col += shade_normal(r, world, 0, &(state[pixel_index]),frameIndex);
     }
     col /= float(ns);
     col[0] = sqrt(col[0]);
@@ -174,11 +174,12 @@ void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFr
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
+        /*
         update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
-
+        */
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
@@ -265,6 +266,7 @@ void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFra
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
+        /*
         update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
@@ -280,7 +282,7 @@ void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFra
         sw.Stop();
         std::string updateTime = std::to_string(sw.GetTime());
         printf("BVH更新完了\n");
-
+        */
         sw.Reset();
         sw.Start();
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
@@ -291,7 +293,7 @@ void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFra
         sw.Stop();
         std::string renderTime = std::to_string(sw.GetTime());
 
-        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,""});
+        //data.push_back({ std::to_string(frameIndex), renderTime, updateTime,""});
 
         //png書き出し
         WritePng(nx, ny, frameIndex, colorBuffer);

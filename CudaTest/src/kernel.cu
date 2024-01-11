@@ -74,20 +74,16 @@ int main()
     init_camera(d_camera, nx, ny, pointerList);
 
     //FBXオブジェクト作成
-    HitableList** fbxList;
-    checkCudaErrors(cudaMallocManaged((void**)&fbxList, sizeof(HitableList*)));
-    init_List(fbxList, pointerList);
+    HitableList** d_fbxList;
+    cudaMalloc(&d_fbxList, sizeof(HitableList*));
     //FBXファイル読み込み
-    FBXObject* fbxData = new FBXObject();//モデルデータ
-    checkCudaErrors(cudaMallocManaged((void**)&fbxData, sizeof(FBXObject*)));
-    FBXAnimationData* fbxAnimationData;//アニメーションデータ
-    fbxAnimationData = new FBXAnimationData();
+    FBXObject* h_fbxData = new FBXObject();//モデルデータ
     //create_FBXObject("./objects/high_Walking3.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
-    create_FBXObject("./objects/low_walking.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
+    CreateFBXData("./objects/low_walking.fbx", h_fbxData, endFrame);
     //create_FBXObject("./objects/low_standUp.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
     
     // メッシュの生成
-    create_FBXMesh(fbxList, fbxData, fbxAnimationData);
+    //create_FBXMesh(d_fbxList, h_fbxData);
     printf("シーン作成完了\n");
 
     //ただのリスト
@@ -95,7 +91,7 @@ int main()
     //ボーンによるBVH
     //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, fbxAnimationData, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH
-    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, d_camera, fbxAnimationData, blocks, threads, d_curand_state, data, pointerList);
+    //renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, d_fbxList, d_camera, fbxAnimationData, blocks, threads, d_curand_state, data, pointerList);
 
 
     // CSVファイルに書き出す
@@ -107,7 +103,6 @@ int main()
     pointerList->freeMemory();
     cudaDeviceReset();
     checkCudaErrors(cudaGetLastError());
-    free(fbxAnimationData);
 
     return 0;
 }
