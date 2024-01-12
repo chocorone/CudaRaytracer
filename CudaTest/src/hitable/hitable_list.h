@@ -116,4 +116,3 @@ __device__ bool HitableList::bounding_box(float t0,
     }
     return true;
 }
-

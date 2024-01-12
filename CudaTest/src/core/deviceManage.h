@@ -133,7 +133,6 @@ void SetCurandState(curandState* curand_state,int nx,int ny,dim3 blocks,dim3 thr
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     pointerList->append((void**)curand_state);
-
 }
 
 __global__ void destroy(HitableList** world,

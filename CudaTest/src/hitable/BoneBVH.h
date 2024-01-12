@@ -10,7 +10,10 @@ public:
         int n,
         float time0,
         float time1,
-        curandState* state, Bone* b,bool root);
+        curandState* state, 
+        vec3 dT,
+        vec3 nowT,
+        bool root);
 
     __device__ virtual bool collision_detection(const Ray& r,
         float t_min,
@@ -21,15 +24,16 @@ public:
         float t1,
         AABB& b) const;
 
-    __device__ void UpdateBVH();
+    __device__ void UpdateBVH(vec3 nowT);
 
     Hitable* left;
     Hitable* right;
     AABB box;
-    Bone* bone;
     bool childIsNode;
     bool isRoot;
     bool isEmpty = false;
+    vec3 nowTransform;
+    vec3 defaultTransform;
 };
 
 
@@ -38,10 +42,14 @@ __device__ BoneBVHNode::BoneBVHNode(Hitable** l,
     int n,
     float time0,
     float time1,
-    curandState* state,Bone* b,bool root) {
+    curandState* state,
+    vec3 dT,
+    vec3 nowT,
+    bool root) {
     transform->ResetTransform();
     isRoot = root;
-    bone = b;
+    defaultTransform = dT;
+    nowTransform = nowT;
 
     int axis = int(3 * curand_uniform(state));
     if (axis == 0) {
@@ -64,8 +72,8 @@ __device__ BoneBVHNode::BoneBVHNode(Hitable** l,
         childIsNode = false;
     }
     else {
-        left = new BoneBVHNode(l, n / 2, time0, time1, state,bone,false);
-        right = new BoneBVHNode(l + n / 2, n - n / 2, time0, time1, state, bone, false);
+        left = new BoneBVHNode(l, n / 2, time0, time1, state,dT, nowT,false);
+        right = new BoneBVHNode(l + n / 2, n - n / 2, time0, time1, state,dT, nowT,false);
         childIsNode = true;
     }
 
@@ -81,7 +89,7 @@ __device__ BoneBVHNode::BoneBVHNode(Hitable** l,
     if (!childIsNode)
     {
         // bvを移動or回転
-        box = moveAABB(box, -bone->defaultTransform);
+        box = moveAABB(box, -defaultTransform);
     }
 }
 
@@ -93,12 +101,13 @@ __device__ bool BoneBVHNode::bounding_box(float t0,
     return true;
 }
 
-__device__ void BoneBVHNode::UpdateBVH()
+__device__ void BoneBVHNode::UpdateBVH(vec3 nowT)
 {
     if (isEmpty)return;
+    nowTransform = nowT;
     if (childIsNode) {
-        ((BoneBVHNode*)left)->UpdateBVH();
-        ((BoneBVHNode*)right)->UpdateBVH();
+        ((BoneBVHNode*)left)->UpdateBVH(nowT);
+        ((BoneBVHNode*)right)->UpdateBVH(nowT);
     }
 
     AABB box_left, box_right;
@@ -117,7 +126,7 @@ __device__ void BoneBVHNode::UpdateBVH()
     if (!childIsNode)
     {
         // bvを移動or回転
-        box = moveAABB(box, -bone->nowTransform);
+        box = moveAABB(box, -nowTransform);
     }
 
 }
@@ -133,7 +142,7 @@ __device__ bool BoneBVHNode::collision_detection(const Ray& r,
     //ボーンの座標分光線を変形
     if (isRoot) 
     {
-        moved_r = Ray(r.origin() - bone->nowTransform, r.direction(), r.time());
+        moved_r = Ray(r.origin() -nowTransform, r.direction(), r.time());
     }
 
     //葉の親と衝突判定時は光線の変形を戻す
@@ -144,7 +153,7 @@ __device__ bool BoneBVHNode::collision_detection(const Ray& r,
 
         if (!childIsNode) {
             //printf("hit to node\n");
-            moved_r = Ray(r.origin() + bone->nowTransform, r.direction(), r.time());
+            moved_r = Ray(r.origin() +nowTransform, r.direction(), r.time());
         }
         HitRecord left_rec, right_rec;
         bool hit_left = left->hit(moved_r, t_min, t_max, left_rec, frameIndex);
