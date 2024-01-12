@@ -61,7 +61,7 @@ public:
 class FBXObject {
 public:
 	MeshData* mesh;
-    Triangle** triangleData;
+    Triangle** d_triangleData;
 	Bone* boneList;
     int boneCount;
     FBXAnimationData* fbxAnimationData;

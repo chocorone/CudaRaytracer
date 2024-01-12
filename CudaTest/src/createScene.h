@@ -80,7 +80,7 @@ void Update_BVH(HitableList** d_boneBvhNode,FBXObject *obj)
     free(h_nowTransform);
 }
 
-__global__ void add_mesh_withNormal(HitableList** list,vec3* points,vec3* normal,vec3* idxVertex,int nTriangles)
+__global__ void add_mesh_withNormal(HitableList** list,Triangle** triangles,vec3* points,vec3* normal,vec3* idxVertex,int nTriangles)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
@@ -90,19 +90,25 @@ __global__ void add_mesh_withNormal(HitableList** list,vec3* points,vec3* normal
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
             Transform* transform = new Transform(vec3(0), vec3(0, 0, 0), vec3(1));
-            (*list)->list[i] = (Hitable*)(new Triangle(v, normal[i], mat, false, transform, true));
+            //Triangle* tri = new Triangle(v, normal[i], new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05))), false, transform, true);
+            Triangle* tri = new Triangle(v, normal[i], mat, false, transform, true);
+            (*list)->list[i] = (Hitable*)tri;
+            triangles[i] = tri;
         }
     }
 }
 
-__global__ void update_pose(HitableList** list,vec3* newPos,vec3* idxVertices) 
+__global__ void update_pose(Triangle** tris , vec3* newPos, vec3* idxVertices,int triangleNum)
 {
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        for (int i = 0; i < (*list)->list_size; i++) {
+        for (int i = 0; i < triangleNum; i++) {
             vec3 idx = idxVertices[i];
             vec3 v[3] = { newPos[int(idx[2])], newPos[int(idx[1])], newPos[int(idx[0])] };
-            ((Triangle*)((*list)->list[i]))->SetVertices(v);
+            tris[i]->SetVertices(v);
+            //Lambertian* mat = (Lambertian*)tris[i]->material;
+            //ConstantTexture* tex = (ConstantTexture*)mat->albedo;
+            //tex->color = vec3(0,0, (float)i / (float)triangleNum);
         }
     }
 }
@@ -129,7 +135,7 @@ void calcPose(int frame, const FBXObject* data, vec3*& newPos, const vec3* idxVe
     }
 }
 
-void updateFBXObj(int frameIndex, FBXObject* obj, HitableList** fbxList) {
+void updateFBXObj(int frameIndex, FBXObject* obj, Triangle** triangleList) {
     vec3* h_pointPos = (vec3*)malloc(sizeof(vec3) * obj->mesh->nPoints);
     calcPose(frameIndex, obj, h_pointPos, obj->mesh->idxVertex);
     vec3* d_newPos;
@@ -138,7 +144,7 @@ void updateFBXObj(int frameIndex, FBXObject* obj, HitableList** fbxList) {
     vec3* d_idxVertices;
     cudaMalloc(&d_idxVertices, sizeof(vec3) * obj->mesh->nTriangles);
     cudaMemcpy(d_idxVertices, obj->mesh->idxVertex, obj->mesh->nTriangles * sizeof(vec3), cudaMemcpyHostToDevice);
-    update_pose << <1, 1 >> > (fbxList, d_newPos, d_idxVertices);
+    update_pose << <1, 1 >> > (triangleList, d_newPos, d_idxVertices, obj->mesh->nTriangles);
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(d_newPos));
@@ -193,8 +199,8 @@ void create_FBXMesh(HitableList** list, FBXObject* data)
     vec3* d_normals;
     cudaMalloc(&d_normals, sizeof(vec3) * data->mesh->nTriangles);
     cudaMemcpy(d_normals, data->mesh->normals, data->mesh->nTriangles * sizeof(vec3), cudaMemcpyHostToDevice);
-
-    add_mesh_withNormal << <1, 1 >> > (list, d_point, d_normals, d_idxVertices, data->mesh->nTriangles); //メッシュの移動と作成
+    cudaMalloc(&data->d_triangleData, sizeof(Triangle*) * data->mesh->nTriangles);
+    add_mesh_withNormal << <1, 1 >> > (list, data->d_triangleData, d_point, d_normals, d_idxVertices, data->mesh->nTriangles); //メッシュの移動と作成
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(d_point));

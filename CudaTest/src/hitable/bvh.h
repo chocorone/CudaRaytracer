@@ -69,7 +69,7 @@ public:
     BVHNode* right;
     HitableList* childList;
     AABB box;
-    bool childIsNode;
+    bool isLeaf;
 };
 
 
@@ -96,7 +96,7 @@ __device__ BVHNode::BVHNode(Hitable** l,
         childList = new HitableList(1);
         childList->transform->ResetTransform();
         childList->list[0] = l[0];
-        childIsNode = false;
+        isLeaf = true;
         childList->GetBV(0,1,box);
     }
     else if (n == 2) {
@@ -104,13 +104,13 @@ __device__ BVHNode::BVHNode(Hitable** l,
         childList->transform->ResetTransform();
         childList->list[0] = l[0];
         childList->list[1] = l[1];
-        childIsNode = false;
+        isLeaf = true;
         childList->GetBV(0, 1, box);
     }
     else {
         left = new BVHNode(l, n / 2, time0, time1, state);
         right = new BVHNode(l + n / 2, n - n / 2, time0, time1, state);
-        childIsNode = true;
+        isLeaf = false;
 
         AABB box_left, box_right;
         if (!left->GetBV(time0, time1, box_left) ||
@@ -121,7 +121,7 @@ __device__ BVHNode::BVHNode(Hitable** l,
         box = surrounding_box(box_left, box_right);
     }
 
-    
+    //printf("box mix:%f,%f,%f\nbox max:%f,%f,%f\n",box.min().x(), box.min().y(), box.min().z(),box.max().x(), box.max().y(), box.max().z());
 }
 
 
@@ -134,7 +134,11 @@ __device__ bool BVHNode::bounding_box(float t0,
 
 __device__ void BVHNode::UpdateBVH()
 {
-    if (childIsNode) {
+    if (isLeaf) 
+    {
+        childList->bounding_box(0, 1, box);
+    }
+    else {
         left->UpdateBVH();
         right->UpdateBVH();
 
@@ -142,7 +146,6 @@ __device__ void BVHNode::UpdateBVH()
         if (!left->GetBV(0, 1, box_left) ||
             !right->GetBV(0, 1, box_right)) {
             return;
-            // std::cerr << "no bounding box in BVHNode constructor \n";
         }
         //拡大
         //box = surrounding_box(box_left, box);
@@ -150,10 +153,6 @@ __device__ void BVHNode::UpdateBVH()
 
         // 再フィット
         box = surrounding_box(box_right, box_left);
-    }
-    else {
-        //printf("leaf");
-        childList->bounding_box(0,1,box);
     }
     
 }
@@ -164,34 +163,28 @@ __device__ bool BVHNode::collision_detection(const Ray& r,
     HitRecord& rec, int frameIndex) const {
    
     if (!box.hit(r, t_min, t_max)) return false;
-
-    if (childIsNode) 
-    {
-        HitRecord left_rec, right_rec;
-        bool hit_left = left->hit(r, t_min, t_max, left_rec, frameIndex);
-        bool hit_right = right->hit(r, t_min, t_max, right_rec, frameIndex);
-        if (hit_left && hit_right) {
-            if (left_rec.t < right_rec.t) {
-                rec = left_rec;
-            }
-            else {
-                rec = right_rec;
-            }
-            return true;
-        }
-        else if (hit_left) {
+    if (isLeaf)return childList->hit(r, t_min, t_max, rec, frameIndex);
+    
+    HitRecord left_rec, right_rec;
+    bool hit_left = left->hit(r, t_min, t_max, left_rec, frameIndex);
+    bool hit_right = right->hit(r, t_min, t_max, right_rec, frameIndex);
+    if (hit_left && hit_right) {
+        if (left_rec.t < right_rec.t) {
             rec = left_rec;
-            return true;
         }
-        else if (hit_right) {
+        else {
             rec = right_rec;
-            return true;
         }
-        
-        return false;
-        
+        return true;
     }
-    
-    return childList->hit(r, t_min, t_max, rec, frameIndex);
-    
+    else if (hit_left) {
+        rec = left_rec;
+        return true;
+    }
+    else if (hit_right) {
+        rec = right_rec;
+        return true;
+    }
+        
+    return false;
 }

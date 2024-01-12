@@ -8,7 +8,7 @@ void renderFBXList(int nx, int ny, int samples, int max_depth, int beginFrame, i
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        updateFBXObj(frameIndex, obj,fbxList);
+        updateFBXObj(frameIndex, obj,obj->d_triangleData);
         renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)fbxList,camera, blocks,threads,curand_state);
     }
 }
@@ -31,7 +31,7 @@ void renderBoneBVH(int nx, int ny, int samples, int max_depth, int beginFrame, i
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        updateFBXObj(frameIndex, obj,fbxList);
+        updateFBXObj(frameIndex, obj, obj->d_triangleData);
         Update_BVH(d_boneBVHList,obj);
         //std::string updateTime = std::to_string(sw.GetTime());
         renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_boneBVHList, camera, blocks, threads, curand_state);
@@ -47,18 +47,20 @@ void renderBVH(int nx, int ny, int samples, int max_depth, int beginFrame, int e
     StopWatch sw;
     sw.Reset();
     sw.Start();
+    
     BVHNode** d_bvhNode;
     cudaMalloc(&d_bvhNode, sizeof(BVHNode*));
     create_BVHfromList(d_bvhNode, fbxList, curand_state);
     sw.Stop();
     printf("BVH作成完了\n");
+    
     data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
 
     // レンダリング
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        updateFBXObj(frameIndex, obj, fbxList);
+        updateFBXObj(frameIndex, obj, obj->d_triangleData);
         Update_BVH(d_bvhNode);
         renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_bvhNode, camera, blocks, threads, curand_state);
     }
@@ -116,9 +118,9 @@ int main()
     //ただのリスト
     //renderFBXList(nx, ny, samples, max_depth, beginFrame, endFrame, d_camera, blocks, threads, d_curand_state,h_fbxData,d_fbxList);
     //ボーンによるBVH
-    renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, d_camera, blocks, threads, d_curand_state, h_fbxData, d_fbxList, data);
+    //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, d_camera, blocks, threads, d_curand_state, h_fbxData, d_fbxList, data);
     //BVH
-    //renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame,  d_camera, blocks, threads, d_curand_state, h_fbxData, d_fbxList,data);
+    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame,  d_camera, blocks, threads, d_curand_state, h_fbxData, d_fbxList,data);
 
 
     // CSVファイルに書き出す
