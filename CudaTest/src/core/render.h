@@ -157,7 +157,7 @@ void WritePng(int nx,int ny,int frameIndex,const vec3* colorBuffer)
 }
 
 
-void renderImage(int nx, int ny, int samples, int max_depth, int frame_index,
+std::string renderImage(int nx, int ny, int samples, int max_depth, int frame_index,
     Hitable** world, Camera** camera, dim3 blocks, dim3 threads, curandState* curand_state) {
 
     // âÊëfÇÃÉÅÉÇÉäämï€
@@ -170,16 +170,23 @@ void renderImage(int nx, int ny, int samples, int max_depth, int frame_index,
     vec3* d_colorBuffer;
     cudaMalloc(&d_colorBuffer, nx * ny * sizeof(vec3));
     cudaMemcpy(d_colorBuffer, h_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyHostToDevice);
-
+    
+    StopWatch sw;
+    sw.Reset();
+    sw.Start();
     render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frame_index);
     CHECK(cudaDeviceSynchronize());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     cudaMemcpy(h_colorBuffer, d_colorBuffer, nx * ny * sizeof(vec3), cudaMemcpyDeviceToHost);
+    sw.Stop();
+
     //pngèëÇ´èoÇµ
     WritePng(nx, ny, frame_index, h_colorBuffer);
     checkCudaErrors(cudaFree(d_colorBuffer));
     free(h_colorBuffer);
+
+    return std::to_string(sw.GetTime());
 }
 
 

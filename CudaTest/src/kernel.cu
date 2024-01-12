@@ -32,9 +32,13 @@ void renderBoneBVH(int nx, int ny, int samples, int max_depth, int beginFrame, i
     {
         //メッシュの位置の更新
         updateFBXObj(frameIndex, obj, obj->d_triangleData);
+        sw.Reset();
+        sw.Start();
         Update_BVH(d_boneBVHList,obj);
-        //std::string updateTime = std::to_string(sw.GetTime());
-        renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_boneBVHList, camera, blocks, threads, curand_state);
+        sw.Stop();
+        std::string updateTime = std::to_string(sw.GetTime());
+        std::string renderTime = renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_boneBVHList, camera, blocks, threads, curand_state);
+        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,""});
     }
     checkCudaErrors(cudaFree(d_boneBVHList));
 }
@@ -61,8 +65,13 @@ void renderBVH(int nx, int ny, int samples, int max_depth, int beginFrame, int e
     {
         //メッシュの位置の更新
         updateFBXObj(frameIndex, obj, obj->d_triangleData);
+        sw.Reset();
+        sw.Start();
         Update_BVH(d_bvhNode);
-        renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_bvhNode, camera, blocks, threads, curand_state);
+        sw.Stop();
+        std::string updateTime = std::to_string(sw.GetTime());
+        std::string renderTime = renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_bvhNode, camera, blocks, threads, curand_state);
+        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,"" });
     }
     checkCudaErrors(cudaFree(d_bvhNode));
 }
@@ -114,7 +123,6 @@ int main()
     create_FBXMesh(d_fbxList, h_fbxData);
     printf("FBX作成完了\n");
 
-    endFrame = 5;
     //ただのリスト
     //renderFBXList(nx, ny, samples, max_depth, beginFrame, endFrame, d_camera, blocks, threads, d_curand_state,h_fbxData,d_fbxList);
     //ボーンによるBVH
