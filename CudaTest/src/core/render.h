@@ -174,7 +174,7 @@ void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFr
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
+        //update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
         CHECK(cudaDeviceSynchronize());
         checkCudaErrors(cudaGetLastError());
         checkCudaErrors(cudaDeviceSynchronize());
@@ -192,7 +192,7 @@ void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFr
 }
 
 void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
-    Hitable** world, Camera** camera, FBXAnimationData* fbxAnimationData,
+    Hitable** world, Camera** camera, FBXObject* obj,
     dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
 
     StopWatch sw;
@@ -210,18 +210,12 @@ void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFra
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
-        CHECK(cudaDeviceSynchronize());
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
+        updateFBXObj(frameIndex, obj, obj->d_triangleData);
 
         sw.Reset();
         sw.Start();
         //BVHの更新
-        UpdateBVH << <1, 1 >> > ((BVHNode**)world);
-        CHECK(cudaDeviceSynchronize());
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
+        Update_BVH((BVHNode**)world);
         sw.Stop();
         std::string updateTime = std::to_string(sw.GetTime());
         printf("BVH更新完了\n");
@@ -246,7 +240,7 @@ void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFra
 }
 
 void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
-    Hitable** world,  Camera** camera, FBXAnimationData* fbxAnimationData,
+    Hitable** world,  Camera** camera, FBXObject* obj,
     dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
 
     StopWatch sw;
@@ -264,22 +258,16 @@ void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFra
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
-        CHECK(cudaDeviceSynchronize());
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
-       
+        updateFBXObj(frameIndex, obj, obj->d_triangleData);
+        
         sw.Reset();
         sw.Start();
         //BVHの更新
-        UpdateBVH << <1, 1 >> > ((HitableList**)world);
-        CHECK(cudaDeviceSynchronize());
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
+        Update_BVH((HitableList**)world, obj);
         sw.Stop();
         std::string updateTime = std::to_string(sw.GetTime());
         printf("BVH更新完了\n");
-
+        
         sw.Reset();
         sw.Start();
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
@@ -291,7 +279,7 @@ void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFra
         std::string renderTime = std::to_string(sw.GetTime());
 
         data.push_back({ std::to_string(frameIndex), renderTime, updateTime,""});
-
+        
         //png書き出し
         WritePng(nx, ny, frameIndex, colorBuffer);
     }

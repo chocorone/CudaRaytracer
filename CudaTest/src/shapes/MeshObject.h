@@ -3,17 +3,17 @@
 
 class MeshData {
 public:
-	int nPoints;
-	int nTriangles;
-	vec3* points;
-	vec3* idxVertex;
-	vec3* normals;
+    int nPoints;
+    int nTriangles;
+    vec3* points;
+    vec3* idxVertex;
+    vec3* normals;
 };
 
 class Bone {
 public:
     __host__ __device__ Bone() {}
-    __host__ __device__ Bone(const char* name, vec3 defaultT, vec3 defaultR, vec3 t, vec3 r,int wcount) {
+    __host__ __device__ Bone(const char* name, vec3 defaultT, vec3 defaultR, vec3 t, vec3 r, int wcount) {
         boneName = name;
         defaultTransform = defaultT;
         defaultRotation = defaultR;
@@ -41,14 +41,6 @@ public:
     double* weights;
 };
 
-class FBXObject {
-public:
-	MeshData* mesh;
-    Triangle** triangleData;
-	Bone* boneList;
-    int boneCount;
-};
-
 
 class BonePoseData {
 public:
@@ -63,6 +55,20 @@ class FBXAnimationData {
 public:
     __host__ __device__ FBXAnimationData() {}
     int frameCount;
-    FBXObject* object;
     BonePoseData* animation;
 };
+
+class FBXObject {
+public:
+    MeshData* mesh;
+    Triangle** d_triangleData;
+    Bone* boneList;
+    int boneCount;
+    FBXAnimationData* fbxAnimationData;
+    FBXObject()
+    {
+        mesh = new MeshData();
+        fbxAnimationData = new FBXAnimationData();
+    }
+};
+
