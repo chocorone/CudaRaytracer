@@ -10,7 +10,7 @@ public:
         int n,
         float time0,
         float time1,
-        curandState* state, 
+        curandState* state,
         vec3 dT,
         vec3 nowT,
         bool root);
@@ -72,8 +72,8 @@ __device__ BoneBVHNode::BoneBVHNode(Hitable** l,
         childIsNode = false;
     }
     else {
-        left = new BoneBVHNode(l, n / 2, time0, time1, state,dT, nowT,false);
-        right = new BoneBVHNode(l + n / 2, n - n / 2, time0, time1, state,dT, nowT,false);
+        left = new BoneBVHNode(l, n / 2, time0, time1, state, dT, nowT, false);
+        right = new BoneBVHNode(l + n / 2, n - n / 2, time0, time1, state, dT, nowT, false);
         childIsNode = true;
     }
 
@@ -92,6 +92,7 @@ __device__ BoneBVHNode::BoneBVHNode(Hitable** l,
         box = moveAABB(box, -defaultTransform);
     }
 }
+
 
 
 __device__ bool BoneBVHNode::bounding_box(float t0,
@@ -140,53 +141,33 @@ __device__ bool BoneBVHNode::collision_detection(const Ray& r,
 
     Ray moved_r(r.origin(), r.direction(), r.time());
     //ボーンの座標分光線を変形
-    if (isRoot) 
-    {
-        moved_r = Ray(r.origin() -nowTransform, r.direction(), r.time());
-    }
+    moved_r = isRoot ? Ray(r.origin() - nowTransform, r.direction(), r.time()) : moved_r;
 
-    //葉の親と衝突判定時は光線の変形を戻す
-    if (box.hit(moved_r, t_min, t_max)) {
-        //rec.normal = vec3(0,0,1);
-        //return true;
+    if (!box.hit(moved_r, t_min, t_max)) return false;
 
+    //葉と衝突判定時は光線の変形を戻す
+    moved_r = childIsNode ? moved_r : Ray(r.origin() + nowTransform, r.direction(), r.time());
 
-        if (!childIsNode) {
-            //printf("hit to node\n");
-            moved_r = Ray(r.origin() +nowTransform, r.direction(), r.time());
-        }
-        HitRecord left_rec, right_rec;
-        bool hit_left = left->hit(moved_r, t_min, t_max, left_rec, frameIndex);
-        bool hit_right = right->hit(moved_r, t_min, t_max, right_rec, frameIndex);
-
-        if (hit_left && hit_right) {
-            if (left_rec.t < right_rec.t) {
-                rec = left_rec;
-            }
-            else {
-                rec = right_rec;
-            }
-
-            //if (!childIsNode) printf("hit to child\n");
-
-            return true;
-        }
-        else if (hit_left) {
+    HitRecord left_rec, right_rec;
+    bool hit_left = left->hit(moved_r, t_min, t_max, left_rec, frameIndex);
+    bool hit_right = right->hit(moved_r, t_min, t_max, right_rec, frameIndex);
+    if (hit_left && hit_right) {
+        if (left_rec.t < right_rec.t) {
             rec = left_rec;
-            //if (!childIsNode) printf("hit to child\n");
-
-
-            return true;
-        }
-        else if (hit_right) {
-            rec = right_rec;
-            //if (!childIsNode) printf("hit to child\n");
-
-            return true;
         }
         else {
-            return false;
+            rec = right_rec;
         }
+        return true;
     }
+    else if (hit_left) {
+        rec = left_rec;
+        return true;
+    }
+    else if (hit_right) {
+        rec = right_rec;
+        return true;
+    }
+
     return false;
 }

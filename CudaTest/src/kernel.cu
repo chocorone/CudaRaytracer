@@ -1,79 +1,41 @@
 ﻿#include "Loader/CSVWriter.h"
 #include "core/render.h"
 
-void renderFBXList(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
-    Camera** camera,dim3 blocks, dim3 threads, curandState* curand_state, FBXObject* obj,HitableList** fbxList)
-{
-    // レンダリング
-    for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
-    {
-        //メッシュの位置の更新
-        updateFBXObj(frameIndex, obj,obj->d_triangleData);
-        renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)fbxList,camera, blocks,threads,curand_state);
-    }
-}
 
 void renderBoneBVH(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
-    Camera** camera, dim3 blocks, dim3 threads, curandState* curand_state, FBXObject* obj, HitableList** fbxList,
-    std::vector<std::vector<std::string>>& data)
+    Camera** camera, 
+    dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data,
+    CudaPointerList* pointerList, FBXObject* fbxData)
 {
     StopWatch sw;
     sw.Reset();
     sw.Start();
-    HitableList** d_boneBVHList;
-    cudaMalloc(&d_boneBVHList, sizeof(HitableList*));
-    createBoneBVH(d_boneBVHList, obj, curand_state,fbxList);
+    HitableList** boneBVHList;
+    cudaMalloc(&boneBVHList, sizeof(HitableList*));
+    createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
     sw.Stop();
     printf("BVH作成完了\n");
     data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
+    renderBVHNodeAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera, fbxData, blocks, threads, curand_state, data);
 
-    // レンダリング
-    for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
-    {
-        //メッシュの位置の更新
-        updateFBXObj(frameIndex, obj, obj->d_triangleData);
-        sw.Reset();
-        sw.Start();
-        Update_BVH(d_boneBVHList,obj);
-        sw.Stop();
-        std::string updateTime = std::to_string(sw.GetTime());
-        std::string renderTime = renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_boneBVHList, camera, blocks, threads, curand_state);
-        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,""});
-    }
-    checkCudaErrors(cudaFree(d_boneBVHList));
 }
 
 
-void renderBVH(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame, 
-    Camera** camera, dim3 blocks, dim3 threads, curandState* curand_state, FBXObject* obj, HitableList** fbxList,
-    std::vector<std::vector<std::string>>& data)
+void renderBVH(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
+    HitableList** fbxList, Camera** camera,
+    dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data,
+    CudaPointerList* pointerList, FBXObject* fbxData)
 {
     StopWatch sw;
     sw.Reset();
     sw.Start();
-    
-    BVHNode** d_bvhNode;
-    cudaMalloc(&d_bvhNode, sizeof(BVHNode*));
-    create_BVHfromList(d_bvhNode, fbxList, curand_state);
+    BVHNode** bvhNode;
+    cudaMalloc(&bvhNode, sizeof(BVHNode*));
+    create_BVHfromList(bvhNode, fbxList, curand_state, pointerList);
     sw.Stop();
     printf("BVH作成完了\n");
-    
     data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
-
-    // レンダリング
-    for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
-    {
-        //メッシュの位置の更新
-        updateFBXObj(frameIndex, obj, obj->d_triangleData);
-        sw.Reset();
-        sw.Start();
-        Update_BVH(d_bvhNode);
-        sw.Stop();
-        std::string updateTime = std::to_string(sw.GetTime());
-        std::string renderTime = renderImage(nx, ny, samples, max_depth, frameIndex, (Hitable**)d_bvhNode, camera, blocks, threads, curand_state);
-        data.push_back({ std::to_string(frameIndex), renderTime, updateTime,"" });
-    }
-    checkCudaErrors(cudaFree(d_bvhNode));
+    renderBVHAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvhNode, camera, fbxData, blocks, threads, curand_state, data);
 }
 
 int main()
@@ -94,41 +56,46 @@ int main()
     CudaPointerList* pointerList = new CudaPointerList();//あとで破棄するデバイス用ポインターのリスト
 
     //計測用データ
+    StopWatch sw;
     std::vector<std::vector<std::string>> data;
     data.push_back({ "frame", "rendering", "update","build"});
 
     //ヒープサイズ・スタックサイズ指定
-    ChangeHeapSize(1024 * 1024 * 1024 * 128);
-    ChangeStackSize(1024 * 128);
-    // 乱数列生成用のメモリ確保
-    curandState* d_curand_state;
-    cudaMalloc(&d_curand_state, nx * ny * sizeof(curandState));
-    SetCurandState(d_curand_state, nx, ny, blocks, threads,pointerList);
-    //カメラ作成
-    Camera** d_camera;
-    cudaMalloc(&d_camera, sizeof(Camera*));
-    init_camera(d_camera, nx, ny, pointerList);
-    printf("シーン準備完了\n");
+    //ChangeHeapSize(1024 * 1024 * 1024*4);
+    cudaError_t err = cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1048576ULL * 2048);
 
-    //FBXファイル読み込み
-    FBXObject* h_fbxData = new FBXObject();//モデルデータ
-    //create_FBXObject("./objects/high_Walking3.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
-    CreateFBXData("./objects/low_walking.fbx", h_fbxData, endFrame);
-    //create_FBXObject("./objects/low_standUp.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
-    printf("FBXロード完了\n");
+    ChangeStackSize(1024 * 16);
+    // 乱数列生成用のメモリ確保
+    curandState* curand_state;
+    checkCudaErrors(cudaMallocManaged((void**)&curand_state, nx * ny * sizeof(curandState)));
+    SetCurandState(curand_state, nx, ny, blocks, threads,pointerList);
+
+    //カメラ作成
+    Camera** camera;
+    checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
+    init_camera(camera, nx, ny, pointerList);
 
     //FBXオブジェクト作成
-    HitableList** d_fbxList;
-    cudaMalloc(&d_fbxList, sizeof(HitableList*));
-    create_FBXMesh(d_fbxList, h_fbxData);
-    printf("FBX作成完了\n");
+    HitableList** fbxList;
+    checkCudaErrors(cudaMallocManaged((void**)&fbxList, sizeof(HitableList*)));
+    init_List(fbxList, pointerList);
+    //FBXファイル読み込み
+    FBXObject* fbxData = new FBXObject();//モデルデータ
+    //CreateFBXData("./objects/low_walking.fbx", fbxData, endFrame);
+    //CreateFBXData("./objects/low_standUp.fbx", fbxData, endFrame);
+    //CreateFBXData("./objects/high_Walking5.fbx", fbxData, endFrame);
+    //CreateFBXData("./objects/high_StandUp2.fbx", fbxData, endFrame);
+    CreateFBXData("./objects/Land2.fbx", fbxData, endFrame);
+    // メッシュの生成
+    create_FBXMesh(fbxList, fbxData);
+    printf("シーン作成完了\n");
 
     //ただのリスト
-    //renderFBXList(nx, ny, samples, max_depth, beginFrame, endFrame, d_camera, blocks, threads, d_curand_state,h_fbxData,d_fbxList);
+    //renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)fbxList, camera, fbxAnimationData, blocks, threads, curand_state);
     //ボーンによるBVH
-    //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, d_camera, blocks, threads, d_curand_state, h_fbxData, d_fbxList, data);
+    renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH
-    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame,  d_camera, blocks, threads, d_curand_state, h_fbxData, d_fbxList,data);
+    //renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, blocks, threads, curand_state, data, pointerList,fbxData);
 
 
     // CSVファイルに書き出す

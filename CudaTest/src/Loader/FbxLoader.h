@@ -12,7 +12,7 @@
 #pragma comment(lib, "zlib-md.lib")
 
 
-bool GetMeshData(fbxsdk::FbxManager* manager,fbxsdk::FbxScene* scene, FBXObject* fbxData) {
+bool GetMeshData(fbxsdk::FbxManager* manager, fbxsdk::FbxScene* scene, FBXObject* fbxData) {
 	// 三角ポリゴンへのコンバート
 	FbxGeometryConverter geometryConverter(manager);
 	if (!geometryConverter.Triangulate(scene, true))
@@ -91,13 +91,13 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 		fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform();
 		vec3 defaultTransform = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
 		vec3 defaultRotation = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
-		
+
 		fbxData->boneList[i] = Bone(node->GetName(), defaultTransform, defaultRotation,
-			defaultTransform, defaultRotation,pCluster->GetControlPointIndicesCount());
+			defaultTransform, defaultRotation, pCluster->GetControlPointIndicesCount());
 		fbxData->boneList[i].weightIndices = (int*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(int));
 		fbxData->boneList[i].weights = (double*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(double));
 
-		for (int weightIndex = 0; weightIndex < pCluster->GetControlPointIndicesCount(); weightIndex++) 
+		for (int weightIndex = 0; weightIndex < pCluster->GetControlPointIndicesCount(); weightIndex++)
 		{
 			fbxData->boneList[i].weightIndices[weightIndex] = pCluster->GetControlPointIndices()[weightIndex];
 			fbxData->boneList[i].weights[weightIndex] = pCluster->GetControlPointWeights()[weightIndex];
@@ -106,7 +106,7 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 
 }
 
-void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene,FBXObject* fbxData, int& endFrame) {
+void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObject* fbxData, int& endFrame) {
 	//アニメーション情報取得
 	int animStackCount = importer->GetAnimStackCount();
 	FbxTakeInfo* pFbxTakeInfo = importer->GetTakeInfo(0);
@@ -115,8 +115,8 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene,FBX
 	FbxLongLong oneFrameValue = FbxTime::GetOneFrameValue(FbxTime::eFrames60);
 	int framecount = (stop - start) / oneFrameValue;
 	printf("アニメーションの合計フレーム数%d\n", framecount);
-	endFrame = framecount-1;
-	
+	endFrame = framecount - 1;
+
 	auto mesh = scene->GetSrcObject<FbxMesh>();
 	fbxsdk::FbxSkin* pSkin = static_cast<fbxsdk::FbxSkin*>(mesh->GetDeformer(0));
 
@@ -127,7 +127,7 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene,FBX
 
 	fbxData->fbxAnimationData->frameCount = framecount;
 	fbxData->fbxAnimationData->animation = (BonePoseData*)malloc(sizeof(BonePoseData) * framecount);
-	for (int frameIndex = 0; frameIndex < framecount; frameIndex++) 
+	for (int frameIndex = 0; frameIndex < framecount; frameIndex++)
 	{
 		BonePoseData pose = BonePoseData();
 		pose.boneCount = fbxData->boneCount;
@@ -137,13 +137,13 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene,FBX
 		{
 			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
 			FbxNode* node = pCluster->GetLink();
-			fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform(frameIndex* oneFrameValue);
+			fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform(frameIndex * oneFrameValue);
 			pose.nowTransforom[i] = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
 			pose.nowRatation[i] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
 		}
 		fbxData->fbxAnimationData->animation[frameIndex] = pose;
 		printf("%dフレーム目読み込み完了\n", frameIndex);
-	}	
+	}
 }
 
 bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, int& endFrame)
@@ -167,8 +167,8 @@ bool CreateFBXData(const std::string& filePath, FBXObject* fbxData, int& endFram
 		return false;
 	}
 
-	GetBoneData(importer, scene,fbxData);
-	GetAnimationData(importer, scene,fbxData, endFrame);
+	GetBoneData(importer, scene, fbxData);
+	GetAnimationData(importer, scene, fbxData, endFrame);
 
 	// マネージャー、シーンの破棄
 	importer->Destroy();
