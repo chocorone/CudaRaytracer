@@ -157,7 +157,7 @@ void WritePng(int nx,int ny,int frameIndex,const vec3* colorBuffer)
 }
 
 void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFrame, int endFrame,
-    Hitable** world, Camera** camera, FBXAnimationData* fbxAnimationData,
+    Hitable** world, Camera** camera, FBXObject* obj,
     dim3 blocks, dim3 threads, curandState* curand_state) {
 
     // 画素のメモリ確保
@@ -174,10 +174,7 @@ void renderListAnimation(int nx, int ny, int samples, int max_depth, int beginFr
     for (int frameIndex = beginFrame; frameIndex <= endFrame; frameIndex++)
     {
         //メッシュの位置の更新
-        //update_mesh_fromPoseData << <1, 1 >> > (fbxAnimationData->object, fbxAnimationData->animation[frameIndex], frameIndex);
-        CHECK(cudaDeviceSynchronize());
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
+        updateFBXObj(frameIndex, obj, obj->d_triangleData);
 
         render << <blocks, threads >> > (d_colorBuffer, world, camera, curand_state, nx, ny, samples, max_depth, frameIndex);
         CHECK(cudaDeviceSynchronize());
@@ -285,24 +282,6 @@ void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFra
     }
     checkCudaErrors(cudaFree(d_colorBuffer));
     free(colorBuffer);
-}
-
-void BuildAnimatedSphere(HitableList** world, AnimationDataList* animationData, TransformList** transformPointer) {
-    add_object << <1, 1 >> > (world, transformPointer);
-
-    //アニメーション準備
-    KeyFrameList* keyFrames = new KeyFrameList();
-    keyFrames->append(new KeyFrame(0, new Transform(vec3(0, 1, 0), vec3(0), vec3(1))));
-    keyFrames->append(new KeyFrame(3, new Transform(vec3(0, 5, 0), vec3(0), vec3(1.5))));
-    KeyFrameList* keyFrames2 = new KeyFrameList();
-    keyFrames2->append(new KeyFrame(0, new Transform(vec3(-4, 1, 0), vec3(0), vec3(1))));
-    keyFrames2->append(new KeyFrame(3, new Transform(vec3(-4, -5, 0), vec3(0), vec3(10))));
-    KeyFrameList* keyFrames3 = new KeyFrameList();
-    keyFrames3->append(new KeyFrame(0, new Transform(vec3(4, 1, 0), vec3(0), vec3(1))));
-
-    animationData->append(new AnimationData(keyFrames));
-    animationData->append(new AnimationData(keyFrames2));
-    animationData->append(new AnimationData(keyFrames3));
 }
 
 

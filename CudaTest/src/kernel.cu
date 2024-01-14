@@ -75,32 +75,27 @@ int main()
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
     init_camera(camera, nx, ny, pointerList);
 
-    //オブジェクト作成
-    TransformList** transformPointer;
-    checkCudaErrors(cudaMallocManaged((void**)&transformPointer, sizeof(TransformList*)));
-    init_TransformList(transformPointer, pointerList);
-    AnimationDataList* animationData = new AnimationDataList();
-
     //FBXオブジェクト作成
     HitableList** fbxList;
     checkCudaErrors(cudaMallocManaged((void**)&fbxList, sizeof(HitableList*)));
     init_List(fbxList, pointerList);
     //FBXファイル読み込み
     FBXObject* fbxData = new FBXObject();//モデルデータ
-    //create_FBXObject("./objects/low_walking.fbx", fbxData, fbxAnimationData, endFrame, pointerList);
+    //CreateFBXData("./objects/low_walking.fbx", fbxData, endFrame);
+    //CreateFBXData("./objects/low_standUp.fbx", fbxData, endFrame);
     //CreateFBXData("./objects/high_Walking5.fbx", fbxData, endFrame);
-    CreateFBXData("./objects/high_StandUp2.fbx", fbxData, endFrame);
+    //CreateFBXData("./objects/high_StandUp2.fbx", fbxData, endFrame);
+    CreateFBXData("./objects/Land2.fbx", fbxData, endFrame);
     // メッシュの生成
     create_FBXMesh(fbxList, fbxData);
     printf("シーン作成完了\n");
 
-    //endFrame = 0;
     //ただのリスト
     //renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)fbxList, camera, fbxAnimationData, blocks, threads, curand_state);
     //ボーンによるBVH
-    //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, blocks, threads, curand_state, data, pointerList, fbxData);
+    renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH
-    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, blocks, threads, curand_state, data, pointerList,fbxData);
+    //renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, blocks, threads, curand_state, data, pointerList,fbxData);
 
 
     // CSVファイルに書き出す
@@ -112,8 +107,6 @@ int main()
     pointerList->freeMemory();
     cudaDeviceReset();
     checkCudaErrors(cudaGetLastError());
-
-    free(animationData);
 
     return 0;
 }
