@@ -1,4 +1,4 @@
-ï»¿#include "Loader/CSVWriter.h"
+#include "Loader/CSVWriter.h"
 #include "core/render.h"
 
 
@@ -14,9 +14,9 @@ void renderBoneBVH(int nx, int ny, int samples, int max_depth, int beginFrame, i
     cudaMalloc(&boneBVHList, sizeof(HitableList*));
     createBoneBVH(boneBVHList, fbxData, curand_state, pointerList);
     sw.Stop();
-    printf("BVHä½œæˆå®Œäº†\n");
+    printf("BVHì¬Š®—¹\n");
     data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
-    renderBVHNodeAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera, fbxData, blocks, threads, curand_state, data);
+    renderBoneBVHAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)boneBVHList, camera, fbxData, blocks, threads, curand_state, data);
 
 }
 
@@ -33,14 +33,14 @@ void renderBVH(int nx, int ny, int samples, int max_depth, int beginFrame, int e
     cudaMalloc(&bvhNode, sizeof(BVHNode*));
     create_BVHfromList(bvhNode, fbxList, curand_state, pointerList);
     sw.Stop();
-    printf("BVHä½œæˆå®Œäº†\n");
+    printf("BVHì¬Š®—¹\n");
     data.push_back({ "", "", "",std::to_string(sw.GetTime()) });
     renderBVHAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)bvhNode, camera, fbxData, blocks, threads, curand_state, data);
 }
 
 int main()
 {
-    // ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼è¨­å®š
+    // ƒpƒ‰ƒ[ƒ^[İ’è
     const int nx = 1024 * RESOLUTION;
     const int ny = 512 * RESOLUTION;  
     const int threadX = 16;
@@ -53,56 +53,55 @@ int main()
     const int num_pixel = nx * ny;
     dim3 blocks(nx / threadX + 1, ny / threadY + 1);
     dim3 threads(threadX, threadY);
-    CudaPointerList* pointerList = new CudaPointerList();//ã‚ã¨ã§ç ´æ£„ã™ã‚‹ãƒ‡ãƒã‚¤ã‚¹ç”¨ãƒã‚¤ãƒ³ã‚¿ãƒ¼ã®ãƒªã‚¹ãƒˆ
+    CudaPointerList* pointerList = new CudaPointerList();//‚ ‚Æ‚Å”jŠü‚·‚éƒfƒoƒCƒX—pƒ|ƒCƒ“ƒ^[‚ÌƒŠƒXƒg
 
-    //è¨ˆæ¸¬ç”¨ãƒ‡ãƒ¼ã‚¿
+    //Œv‘ª—pƒf[ƒ^
     StopWatch sw;
     std::vector<std::vector<std::string>> data;
     data.push_back({ "frame", "rendering", "update","build"});
 
-    //ãƒ’ãƒ¼ãƒ—ã‚µã‚¤ã‚ºãƒ»ã‚¹ã‚¿ãƒƒã‚¯ã‚µã‚¤ã‚ºæŒ‡å®š
+    //ƒq[ƒvƒTƒCƒYEƒXƒ^ƒbƒNƒTƒCƒYw’è
     //ChangeHeapSize(1024 * 1024 * 1024*4);
     cudaError_t err = cudaDeviceSetLimit(cudaLimitMallocHeapSize, 1048576ULL * 2048);
 
     ChangeStackSize(1024 * 16);
-    // ä¹±æ•°åˆ—ç”Ÿæˆç”¨ã®ãƒ¡ãƒ¢ãƒªç¢ºä¿
+    // —”—ñ¶¬—p‚Ìƒƒ‚ƒŠŠm•Û
     curandState* curand_state;
     checkCudaErrors(cudaMallocManaged((void**)&curand_state, nx * ny * sizeof(curandState)));
     SetCurandState(curand_state, nx, ny, blocks, threads,pointerList);
 
-    //ã‚«ãƒ¡ãƒ©ä½œæˆ
+    //ƒJƒƒ‰ì¬
     Camera** camera;
     checkCudaErrors(cudaMallocManaged((void**)&camera, sizeof(Camera*)));
     init_camera(camera, nx, ny, pointerList);
 
-    //FBXã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆä½œæˆ
+    //FBXƒIƒuƒWƒFƒNƒgì¬
     HitableList** fbxList;
     checkCudaErrors(cudaMallocManaged((void**)&fbxList, sizeof(HitableList*)));
     init_List(fbxList, pointerList);
-    //FBXãƒ•ã‚¡ã‚¤ãƒ«èª­ã¿è¾¼ã¿
-    FBXObject* fbxData = new FBXObject();//ãƒ¢ãƒ‡ãƒ«ãƒ‡ãƒ¼ã‚¿
-    //CreateFBXData("./objects/low_walking.fbx", fbxData, endFrame);
+    //FBXƒtƒ@ƒCƒ‹“Ç‚İ‚İ
+    FBXObject* fbxData = new FBXObject();//ƒ‚ƒfƒ‹ƒf[ƒ^
+    CreateFBXData("./objects/low_walking.fbx", fbxData, endFrame);
     //CreateFBXData("./objects/low_standUp.fbx", fbxData, endFrame);
     //CreateFBXData("./objects/high_Walking5.fbx", fbxData, endFrame);
     //CreateFBXData("./objects/high_StandUp2.fbx", fbxData, endFrame);
-    CreateFBXData("./objects/Land2.fbx", fbxData, endFrame);
-    // ãƒ¡ãƒƒã‚·ãƒ¥ã®ç”Ÿæˆ
+    //CreateFBXData("./objects/Land2.fbx", fbxData, endFrame);
+    // ƒƒbƒVƒ…‚Ì¶¬
     create_FBXMesh(fbxList, fbxData);
-    printf("ã‚·ãƒ¼ãƒ³ä½œæˆå®Œäº†\n");
-
-    //ãŸã ã®ãƒªã‚¹ãƒˆ
+    printf("ƒV[ƒ“ì¬Š®—¹\n");
+    //‚½‚¾‚ÌƒŠƒXƒg
     //renderListAnimation(nx, ny, samples, max_depth, beginFrame, endFrame, (Hitable**)fbxList, camera, fbxAnimationData, blocks, threads, curand_state);
-    //ãƒœãƒ¼ãƒ³ã«ã‚ˆã‚‹BVH
-    renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, blocks, threads, curand_state, data, pointerList, fbxData);
+    //ƒ{[ƒ“‚É‚æ‚éBVH
+    //renderBoneBVH(nx, ny, samples, max_depth, beginFrame, endFrame, camera, blocks, threads, curand_state, data, pointerList, fbxData);
     //BVH
-    //renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, blocks, threads, curand_state, data, pointerList,fbxData);
+    renderBVH(nx, ny, samples, max_depth, beginFrame, endFrame, fbxList, camera, blocks, threads, curand_state, data, pointerList,fbxData);
 
 
-    // CSVãƒ•ã‚¡ã‚¤ãƒ«ã«æ›¸ãå‡ºã™
+    // CSVƒtƒ@ƒCƒ‹‚É‘‚«o‚·
     writeCSV("output.csv", data);
-    printf("csvæ›¸ãå‡ºã—å®Œäº†\n");
+    printf("csv‘‚«o‚µŠ®—¹\n");
 
-    //ãƒ¡ãƒ¢ãƒªè§£æ”¾
+    //ƒƒ‚ƒŠ‰ğ•ú
     checkCudaErrors(cudaDeviceSynchronize());
     pointerList->freeMemory();
     cudaDeviceReset();

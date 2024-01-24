@@ -236,7 +236,7 @@ void renderBVHAnimation(int nx, int ny, int samples, int max_depth, int beginFra
     free(colorBuffer);
 }
 
-void renderBVHNodeAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
+void renderBoneBVHAnimation(int nx,int ny,int samples,int max_depth,int beginFrame,int endFrame,
     Hitable** world,  Camera** camera, FBXObject* obj,
     dim3 blocks, dim3 threads, curandState* curand_state, std::vector<std::vector<std::string>>& data) {
 
