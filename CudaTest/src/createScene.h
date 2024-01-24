@@ -105,9 +105,6 @@ __global__ void update_pose(Triangle** tris, vec3* newPos, vec3* idxVertices, in
             vec3 idx = idxVertices[i];
             vec3 v[3] = { newPos[int(idx[2])], newPos[int(idx[1])], newPos[int(idx[0])] };
             tris[i]->SetVertices(v);
-            //Lambertian* mat = (Lambertian*)tris[i]->material;
-            //ConstantTexture* tex = (ConstantTexture*)mat->albedo;
-            //tex->color = vec3(0,0, (float)i / (float)triangleNum);
         }
     }
 }
@@ -116,20 +113,25 @@ void calcPose(int frame, const FBXObject* data, vec3*& newPos, const vec3* idxVe
 {
     newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
     for (int i = 0; i < data->mesh->nPoints; i++) {
-        newPos[i] = data->mesh->points[i];
+        newPos[i] = 0;
     }
 
     BonePoseData pose = data->fbxAnimationData->animation[frame];
 
+    //0ƒtƒŒ[ƒ€–Ú‚ğ•ÏŒ`‚³‚¹‚é
     for (int boneIndex = 0; boneIndex < data->boneCount; boneIndex++)
     {
-        for (int weightIndex = 0; weightIndex < data->boneList[boneIndex].weightCount; weightIndex++)
+        fbxsdk::FbxAMatrix bind = data->boneList[boneIndex].b.Inverse() * data->boneList[boneIndex].a * data->boneList[boneIndex].c.Inverse();//‰Šúp¨
+        fbxsdk::FbxAMatrix poseMatrix = data->boneList[boneIndex].b.Inverse() * data->boneList[boneIndex].a* pose.amat[boneIndex].Inverse();
+
+        for (int wi = 0; wi < data->boneList[boneIndex].weightCount; wi++)
         {
-            int vertexIndex = data->boneList[boneIndex].weightIndices[weightIndex];
-            double weight = data->boneList[boneIndex].weights[weightIndex];
-            //‚Æ‚è‚ ‚¦‚¸“®‚­‚ªŠÖß‚ª”÷–­
-            const vec3 posePos = (pose.nowTransforom[boneIndex] - data->boneList[boneIndex].defaultTransform) * weight;
-            newPos[vertexIndex] += posePos;
+            int vertIndex = data->boneList[boneIndex].weightIndices[wi];
+            vec3 vec3OriPos = data->mesh->points[vertIndex];
+            FbxVector4 oriPos = FbxVector4(vec3OriPos.x(), vec3OriPos.y(), vec3OriPos.z(), 1);
+            oriPos = poseMatrix.MultT(oriPos);
+            double* movedPos = oriPos;
+            newPos[vertIndex] += vec3(movedPos[0], movedPos[1], movedPos[2]) * data->boneList[boneIndex].weights[wi];
         }
     }
 }

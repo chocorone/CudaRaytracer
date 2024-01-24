@@ -1,6 +1,10 @@
 #pragma once
 #include "../core/vec3.h"
-
+#include <fbxsdk.h>
+#pragma comment(lib, "libfbxsdk-md.lib")
+#pragma comment(lib, "libxml2-md.lib")
+#pragma comment(lib, "zlib-md.lib")
+#pragma comment(lib, "zlib-md.lib")
 class MeshData {
 public:
     int nPoints;
@@ -39,6 +43,10 @@ public:
     int weightCount;
     int* weightIndices;
     double* weights;
+
+    fbxsdk::FbxAMatrix a;
+    fbxsdk::FbxAMatrix b;
+    fbxsdk::FbxAMatrix c;
 };
 
 
@@ -46,9 +54,9 @@ class BonePoseData {
 public:
     __host__ __device__ BonePoseData() {}
     int boneCount;
-
     vec3* nowTransforom;
     vec3* nowRatation;
+    fbxsdk::FbxAMatrix* amat;
 };
 
 class FBXAnimationData {

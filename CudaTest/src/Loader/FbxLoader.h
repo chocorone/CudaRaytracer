@@ -1,15 +1,11 @@
 #pragma once
-#include <fbxsdk.h>
 #include <vector>
 #include <array>
 #include <string>
 #include "../shapes/MeshObject.h"
 #include "../core/deviceManage.h"
 #include <map>
-#pragma comment(lib, "libfbxsdk-md.lib")
-#pragma comment(lib, "libxml2-md.lib")
-#pragma comment(lib, "zlib-md.lib")
-#pragma comment(lib, "zlib-md.lib")
+
 
 
 bool GetMeshData(fbxsdk::FbxManager* manager, fbxsdk::FbxScene* scene, FBXObject* fbxData) {
@@ -96,6 +92,9 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 			defaultTransform, defaultRotation, pCluster->GetControlPointIndicesCount());
 		fbxData->boneList[i].weightIndices = (int*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(int));
 		fbxData->boneList[i].weights = (double*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(double));
+		pCluster->GetTransformLinkMatrix(fbxData->boneList[i].a);
+		pCluster->GetTransformMatrix(fbxData->boneList[i].b);
+		fbxData->boneList[i].c = node->EvaluateGlobalTransform();
 
 		for (int weightIndex = 0; weightIndex < pCluster->GetControlPointIndicesCount(); weightIndex++)
 		{
@@ -133,13 +132,15 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 		pose.boneCount = fbxData->boneCount;
 		pose.nowTransforom = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
 		pose.nowRatation = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
-		for (int i = 0; i < fbxData->boneCount; i++)
+		pose.amat = (fbxsdk::FbxAMatrix*)malloc(sizeof(fbxsdk::FbxAMatrix) * fbxData->boneCount);
+		for (int bi = 0; bi < fbxData->boneCount; bi++)
 		{
-			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(i);
+			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(bi);
 			FbxNode* node = pCluster->GetLink();
 			fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform(frameIndex * oneFrameValue);
-			pose.nowTransforom[i] = vec3(amat.GetT()[0], amat.GetT()[1], amat.GetT()[2]);
-			pose.nowRatation[i] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
+			pose.amat[bi] = amat;
+			pose.nowTransforom[bi] = vec3(amat.GetT()[0],amat.GetT()[1],amat.GetT()[2]);
+			pose.nowRatation[bi] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
 		}
 		fbxData->fbxAnimationData->animation[frameIndex] = pose;
 		printf("%dƒtƒŒ[ƒ€–Ú“Ç‚İ‚İŠ®—¹\n", frameIndex);
