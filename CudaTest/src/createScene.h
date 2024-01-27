@@ -41,7 +41,6 @@ __global__ void create_List(HitableList** list,int n)
 //BVHの作成
 __global__ void create_BVH(HitableList** list, BVHNode** bvh,curandState* state) {
     *bvh = new BVHNode((*list)->list, (*list)->list_size, 0, 1, state);
-    //(*bvh)->transform->rotation = vec3(0, 45, 0);
 }
 
 __global__ void UpdateBVH(BVHNode** bvh) {
@@ -109,36 +108,23 @@ __global__ void update_pose(Triangle** tris, vec3* newPos, vec3* idxVertices, in
     }
 }
 
-void calcPose(int frame, const FBXObject* data, vec3*& newPos, const vec3* idxVertices)
+void calcPose(int frame, const FBXObject* data, vec3*& newPos)
 {
-    newPos = (vec3*)malloc(sizeof(vec3) * data->mesh->nPoints);
-    for (int i = 0; i < data->mesh->nPoints; i++) {
-        newPos[i] = 0;
-    }
+    // <最終的な頂点座標を計算しVERTEXに変換>
+    for (int pi = 0; pi < data->mesh->nPoints; pi++) {
+        FbxVector4 oriPos = FbxVector4(data->mesh->points[pi].x(), data->mesh->points[pi].y(), data->mesh->points[pi].z(),1);
+        FbxVector4 outVertex = data->fbxAnimationData->animation[frame].clusterDeformation[pi].MultNormalize(oriPos);
+        float x = (float)outVertex[0];
+        float y = (float)outVertex[1];
+        float z = (float)outVertex[2];
 
-    BonePoseData pose = data->fbxAnimationData->animation[frame];
-
-    //0フレーム目を変形させる
-    for (int boneIndex = 0; boneIndex < data->boneCount; boneIndex++)
-    {
-        fbxsdk::FbxAMatrix bind = data->boneList[boneIndex].b.Inverse() * data->boneList[boneIndex].a * data->boneList[boneIndex].c.Inverse();//初期姿勢
-        fbxsdk::FbxAMatrix poseMatrix = data->boneList[boneIndex].b.Inverse() * data->boneList[boneIndex].a* pose.amat[boneIndex].Inverse();
-
-        for (int wi = 0; wi < data->boneList[boneIndex].weightCount; wi++)
-        {
-            int vertIndex = data->boneList[boneIndex].weightIndices[wi];
-            vec3 vec3OriPos = data->mesh->points[vertIndex];
-            FbxVector4 oriPos = FbxVector4(vec3OriPos.x(), vec3OriPos.y(), vec3OriPos.z(), 1);
-            oriPos = poseMatrix.MultT(oriPos);
-            double* movedPos = oriPos;
-            newPos[vertIndex] += vec3(movedPos[0], movedPos[1], movedPos[2]) * data->boneList[boneIndex].weights[wi];
-        }
+        newPos[pi] = vec3(x, y, z);
     }
 }
 
 void updateFBXObj(int frameIndex, FBXObject* obj, Triangle** triangleList) {
     vec3* h_pointPos = (vec3*)malloc(sizeof(vec3) * obj->mesh->nPoints);
-    calcPose(frameIndex, obj, h_pointPos, obj->mesh->idxVertex);
+    calcPose(frameIndex, obj, h_pointPos);
     vec3* d_newPos;
     cudaMalloc(&d_newPos, sizeof(vec3) * obj->mesh->nPoints);
     cudaMemcpy(d_newPos, h_pointPos, obj->mesh->nPoints * sizeof(vec3), cudaMemcpyHostToDevice);
@@ -168,11 +154,11 @@ __global__ void create_camera(Camera** camera, int nx, int ny,
 }
 
 void init_camera(Camera** camera, int nx, int ny,CudaPointerList* pointerList) {
-    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 150, 400), vec3(0, 150, 0), 10.0, 0.0, 40);//low_walk
+    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 150, 400), vec3(0, 150, 0), 10.0, 0.0, 40);//low_walk
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 200, 2000), vec3(0, 200, 0), 10.0, 0.0, 40);//dragon
     //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 200), vec3(0, 200, 0), 10.0, 0.0, 60);//high_walk
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 200, 400), vec3(0, 200, 0), 10.0, 0.0, 60);
-    //create_camera << <1, 1 >> > (camera, nx, ny, vec3(200, 250, 300), vec3(0, 200, 0), 10.0, 0.0, 60);//新しい
+    create_camera << <1, 1 >> > (camera, nx, ny, vec3(0, 100, 1000), vec3(0, 150, 0), 10.0, 0.0, 40);//cube
+
     pointerList->append((void**)camera);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
@@ -195,9 +181,8 @@ __global__ void add_mesh_withNormal(HitableList** list, Triangle** triangles, ve
         for (int i = 0; i < nTriangles; i++) {
             vec3 idx = idxVertex[i];
             vec3 v[3] = { points[int(idx[2])], points[int(idx[1])], points[int(idx[0])] };
-            Transform* transform = new Transform(vec3(0), vec3(0, 0, 0), vec3(1));
-            //Triangle* tri = new Triangle(v, normal[i], new Lambertian(new ConstantTexture(vec3(0.65, 0.05, 0.05))), false, transform, true);
-            Triangle* tri = new Triangle(v, normal[i], mat, false, transform, true);
+            Transform* transform = new Transform(vec3(0), vec3(0), vec3(1));
+            Triangle* tri = new Triangle(v, normal[i], mat, false, transform, false);
             (*list)->list[i] = tri;
             triangles[i] = tri;
         }

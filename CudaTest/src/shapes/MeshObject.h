@@ -43,10 +43,6 @@ public:
     int weightCount;
     int* weightIndices;
     double* weights;
-
-    fbxsdk::FbxAMatrix a;
-    fbxsdk::FbxAMatrix b;
-    fbxsdk::FbxAMatrix c;
 };
 
 
@@ -56,7 +52,7 @@ public:
     int boneCount;
     vec3* nowTransforom;
     vec3* nowRatation;
-    fbxsdk::FbxAMatrix* amat;
+    FbxMatrix* clusterDeformation;
 };
 
 class FBXAnimationData {

@@ -92,9 +92,6 @@ void GetBoneData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FBXObje
 			defaultTransform, defaultRotation, pCluster->GetControlPointIndicesCount());
 		fbxData->boneList[i].weightIndices = (int*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(int));
 		fbxData->boneList[i].weights = (double*)malloc(pCluster->GetControlPointIndicesCount() * sizeof(double));
-		pCluster->GetTransformLinkMatrix(fbxData->boneList[i].a);
-		pCluster->GetTransformMatrix(fbxData->boneList[i].b);
-		fbxData->boneList[i].c = node->EvaluateGlobalTransform();
 
 		for (int weightIndex = 0; weightIndex < pCluster->GetControlPointIndicesCount(); weightIndex++)
 		{
@@ -124,25 +121,63 @@ void GetAnimationData(fbxsdk::FbxImporter* importer, fbxsdk::FbxScene* scene, FB
 		return;
 	}
 
+
 	fbxData->fbxAnimationData->frameCount = framecount;
 	fbxData->fbxAnimationData->animation = (BonePoseData*)malloc(sizeof(BonePoseData) * framecount);
 	for (int frameIndex = 0; frameIndex < framecount; frameIndex++)
 	{
+		//メモリ確保
 		BonePoseData pose = BonePoseData();
 		pose.boneCount = fbxData->boneCount;
 		pose.nowTransforom = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
 		pose.nowRatation = (vec3*)malloc(sizeof(vec3) * fbxData->boneCount);
-		pose.amat = (fbxsdk::FbxAMatrix*)malloc(sizeof(fbxsdk::FbxAMatrix) * fbxData->boneCount);
+		pose.clusterDeformation = new FbxMatrix[fbxData->mesh->nPoints];
+		memset(pose.clusterDeformation, 0, sizeof(FbxMatrix) * fbxData->mesh->nPoints);
+
+		//ルートノードの位置を取得
+		FbxNode* rootNode = scene->GetRootNode();
+		FbxMatrix globalPosition = scene->GetRootNode()->EvaluateGlobalTransform(frameIndex * oneFrameValue);
+		FbxVector4 t0 = rootNode->GetGeometricTranslation(FbxNode::eSourcePivot);
+		FbxVector4 r0 = rootNode->GetGeometricRotation(FbxNode::eSourcePivot);
+		FbxVector4 s0 = rootNode->GetGeometricScaling(FbxNode::eSourcePivot);
+		FbxAMatrix geometryOffset = FbxAMatrix(t0, r0, s0);
+
 		for (int bi = 0; bi < fbxData->boneCount; bi++)
 		{
 			fbxsdk::FbxCluster* pCluster = pSkin->GetCluster(bi);
+			FbxMatrix vertexTransformMatrix;
+			FbxAMatrix referenceGlobalInitPosition;
+			FbxAMatrix clusterGlobalInitPosition;
+			FbxMatrix clusterGlobalCurrentPosition;
+			FbxMatrix clusterRelativeInitPosition;
+			FbxMatrix clusterRelativeCurrentPositionInverse;
+			pCluster->GetTransformMatrix(referenceGlobalInitPosition);
+			referenceGlobalInitPosition *= geometryOffset;
+			pCluster->GetTransformLinkMatrix(clusterGlobalInitPosition);
+			clusterGlobalCurrentPosition = pCluster->GetLink()->EvaluateGlobalTransform(frameIndex * oneFrameValue);
+			clusterRelativeInitPosition = clusterGlobalInitPosition.Inverse() * referenceGlobalInitPosition;
+			clusterRelativeCurrentPositionInverse = globalPosition.Inverse() * clusterGlobalCurrentPosition;
+			vertexTransformMatrix = clusterRelativeCurrentPositionInverse * clusterRelativeInitPosition;
+			// 行列に各頂点毎の影響度(重み)を掛けてそれぞれに加算
+			for (int cnt = 0; cnt < pCluster->GetControlPointIndicesCount(); cnt++) {
+				int index = pCluster->GetControlPointIndices()[cnt];
+				double weight = pCluster->GetControlPointWeights()[cnt];
+				FbxMatrix influence = vertexTransformMatrix * weight;
+				pose.clusterDeformation[index] += influence;
+			}
+
+			//BoneBVH用のトランスフォーム取得
 			FbxNode* node = pCluster->GetLink();
 			fbxsdk::FbxAMatrix amat = node->EvaluateGlobalTransform(frameIndex * oneFrameValue);
-			pose.amat[bi] = amat;
 			pose.nowTransforom[bi] = vec3(amat.GetT()[0],amat.GetT()[1],amat.GetT()[2]);
 			pose.nowRatation[bi] = vec3(amat.GetR()[0], amat.GetR()[1], amat.GetR()[2]);
+
 		}
+
 		fbxData->fbxAnimationData->animation[frameIndex] = pose;
+
+
+
 		printf("%dフレーム目読み込み完了\n", frameIndex);
 	}
 }

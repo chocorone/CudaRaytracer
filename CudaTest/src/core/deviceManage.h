@@ -69,7 +69,7 @@ public:
     {
         for (int i = 0; i < list_size; i++)
         {
-            printf("free %d\n", i);
+            //printf("free %d\n", i);
 
             if (typeid(list[i]) == typeid(HitableList**)) 
             {

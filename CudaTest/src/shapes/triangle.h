@@ -74,7 +74,6 @@ __device__ bool Triangle::collision_detection(const Ray& r,
     if (a < EPSILON && backCulling)
         return false;
 
-    // Almost parallel to the triangle
     if (a > -EPSILON && a < EPSILON)
         return false;
 
@@ -90,7 +89,6 @@ __device__ bool Triangle::collision_detection(const Ray& r,
     if (v < 0.0 || u + v > 1.0)
         return false;
 
-    // Compute final t
     float t = f * dot(edge2, q);
 
     rec.t = t;
